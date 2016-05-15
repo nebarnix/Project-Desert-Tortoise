@@ -1,0 +1,12 @@
+CC=gcc
+CFLAGS=-Wall
+
+src = $(wildcard *.c)
+obj = $(src:.c=.o)
+
+demodPOESTIP: $(obj)
+	$(CC) -o $@ $^ 
+
+.PHONY: clean
+clean:
+	del -f $(obj) myprog
