@@ -7,3 +7,11 @@ http://wiki.nebarnix.com/wiki/NOAA_POES_TIP_Demodulation
 Attribution:
 DSP code for the M&M Clock Recovery and Carrier Tracking PLL adapted from GNURADIO source.
 Wave file format parser adapted from http://truelogic.org/wordpress/2015/09/04/parsing-a-wav-file-in-c/ 
+
+Todo in decreasing order of importance:
+# Add dynamic lowpass filter coefficient generator to compensate for varying input sample rates
+# Add in 8x interpolation for the M&M clock recovery routine for better performance. 
+# Add in ability to enable/disable/override things through command line options 
+# Add soundcard input capability 
+# Add the rest of the processing chain starting with manchester decoding and sync detection
+# Add a gui to make pretty things happen in realtime
