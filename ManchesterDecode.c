@@ -36,7 +36,7 @@ unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsi
             //erry[idxerr]=(dataStreamIn[idx]);
             idxerr=idxerr+1;   
             if(fabs(prevPrevSample) > resyncThreshold && fabs(prevSample) > resyncThreshold)                
-               clockmod = (evenOddCounter % 2); //only resync if we have confidence in BOTH bit decisions                        
+               clockmod = (evenOddCounter % 2)+1; //only resync if we have confidence in BOTH bit decisions                        
             }        
          }
        
@@ -64,5 +64,5 @@ unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsi
          }      
       }
    //fprintf([num2str(idxerr) ' errors\n']);
-   return idx2;
+   return idx2-1;
    }
