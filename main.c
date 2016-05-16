@@ -9,6 +9,7 @@
 #include "CarrierTrackPLL.h"
 #include "LowPassFilter.h"
 #include "MMClockRecovery.h"
+#include "ManchesterDecode.h"
 
 #define TRUE 1
 #define FALSE 0
@@ -20,11 +21,12 @@ int main(int argc, char **argv)
    char *filename;
    HEADER header;
    double complex *waveData;
-   float *dataStreamReal, *dataStreamBits;
+   float *dataStreamReal, *dataStreamSymbols;
    float PLLLock;
    float normFactor;
    //float fVal;
-   unsigned long chunksize = 50000, nSamples, i=0, idx, nBits;
+   unsigned long chunksize = 50000, nSamples, i=0, idx, nSymbols, nBits;
+   unsigned char *dataStreamBits;
    
    filename = (char*) malloc(sizeof(char) * 1024);
    if (filename == NULL)
@@ -47,13 +49,19 @@ int main(int argc, char **argv)
       exit(1);
       }
       
-   dataStreamBits = (float*) malloc(sizeof(float) * chunksize);
+   dataStreamSymbols = (float*) malloc(sizeof(float) * chunksize);
+   if (dataStreamSymbols == NULL)
+      {
+      printf("Error in malloc\n");
+      exit(1);
+      }
+   
+   dataStreamBits = (unsigned char*) malloc(sizeof(unsigned char) * chunksize);
    if (dataStreamBits == NULL)
       {
       printf("Error in malloc\n");
       exit(1);
       }
-      
     
    // get file path
    char cwd[1024];
@@ -117,10 +125,12 @@ int main(int argc, char **argv)
       PLLLock = CarrierTrackPLL(waveData, dataStreamReal, nSamples, (float)header.sample_rate, 4500, 0.1, 0.01, 0.001);
       LowPassFilter(dataStreamReal, nSamples);
       NormalizingAGC(dataStreamReal, nSamples, 0.00025);      
-      nBits = MMClockRecovery(dataStreamReal, nSamples, dataStreamBits, header.sample_rate, 10, 0.15);     
+      nSymbols = MMClockRecovery(dataStreamReal, nSamples, dataStreamSymbols, header.sample_rate, 10, 0.15);     
       
       //fwrite(dataStreamReal, sizeof(float), nSamples,rawOutFilePtr);
-      fwrite(dataStreamBits, sizeof(float), nBits,rawOutFilePtr);
+      //fwrite(dataStreamSymbols, sizeof(float), nSymbols,rawOutFilePtr);
+      nBits = ManchesterDecode(dataStreamSymbols, nSymbols, dataStreamBits, 1.0);
+      fwrite(dataStreamBits, sizeof(unsigned char), nBits, rawOutFilePtr);
       /*for(idx=0; idx < nSamples; idx++)
          {
          fVal = (crealf(waveData[i]));
