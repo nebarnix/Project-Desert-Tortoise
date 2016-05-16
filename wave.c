@@ -7,11 +7,11 @@
 
 void printHeaderInfo(HEADER header)
    {
-   printf("(1-4): %s \n", header.riff);
+   printf("(1-4): %.4s \n", header.riff);
    //printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
    printf("(5-8) Overall size: bytes:%u, Kb:%u \n", header.overall_size, header.overall_size/1024);
-   printf("(9-12) Wave marker: %s\n", header.wave);
-   printf("(13-16) Fmt marker: %s\n", header.fmt_chunk_marker);
+   printf("(9-12) Wave marker: %.7s\n", header.wave);
+   printf("(13-16) Fmt marker: %.3s\n", header.fmt_chunk_marker);
    //printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
    printf("(17-20) Length of Fmt header: %u \n", header.length_of_fmt);
    char format_name[10] = "";
@@ -34,7 +34,7 @@ void printHeaderInfo(HEADER header)
    printf("(33-34) Block Alignment: %u \n", header.block_align);
    //printf("%u %u \n", buffer2[0], buffer2[1]);
    printf("(35-36) Bits per sample: %u \n", header.bits_per_sample);
-   printf("(37-40) Data Marker: %s \n", header.data_chunk_header);
+   printf("(37-40) Data Marker: %.4s \n", header.data_chunk_header);
    //printf("%u %u %u %u\n", buffer4[0], buffer4[1], buffer4[2], buffer4[3]);
    printf("(41-44) Size of data chunk: %u \n", header.data_size);
    // calculate no.of samples
