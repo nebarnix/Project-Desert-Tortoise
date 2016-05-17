@@ -10,7 +10,7 @@
 #include "LowPassFilter.h"
 #include "MMClockRecovery.h"
 #include "ManchesterDecode.h"
-#include "MakeLPFIR.h"
+
 
 #define TRUE 1
 #define FALSE 0
