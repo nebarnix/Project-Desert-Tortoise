@@ -14,14 +14,14 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
    unsigned long count = 0;
    static double nextSample = 0;
    static double sampleLast = 0;
+   
    if(firstTime == 1)
       {
       stepSize = Fs/(baud);
       firstTime = 0;
       }
-   
       
-   while(nextSample < numSamples)
+   while(round(nextSample) < numSamples)
       {    
       //Stores Bit 
       currentBit  = dataStreamIn[(unsigned int)(round(nextSample))];
@@ -48,8 +48,8 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
       nextSample = nextSample + stepSize;
       sampleLast = currentBit;
       }
-   nextSample =  nextSample - numSamples;
-   //return count-1; //does this make things better? YES
+   nextSample =  nextSample - numSamples; //roll over to next chunk
+   //return count-1; //does this make things better?
    return count;
    }
 

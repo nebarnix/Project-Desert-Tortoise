@@ -15,6 +15,16 @@
 #define TRUE 1
 #define FALSE 0
 
+
+unsigned int CheckSum(float *dataStreamReal, unsigned long nSamples)
+   {
+   unsigned int sum=0;
+   unsigned long idx;
+   for(idx = 0; idx < nSamples; idx++)
+      sum += dataStreamReal[idx];
+   return sum;
+   }
+
 int main(int argc, char **argv) 
    {
    FILE *waveFilePtr;
@@ -23,15 +33,17 @@ int main(int argc, char **argv)
    HEADER header;
    double complex *waveData;
    float *dataStreamReal, *dataStreamSymbols;
-   float PLLLock;
+   float PLLLock, percentComplete=0;
    float normFactor;
    unsigned long chunksize = 50000, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
    unsigned char *dataStreamBits;
    float Fs;
-   int LPF_Order = 26, nFrames=0, nIFrames=0, totalIFrames=0, totalFrames=0;
-   float LPF_Fc = 11000;
+   int LPF_Order, nFrames=0, totalFrames=0;
+   float LPF_Fc;
    double *filterCoeffs;
+   //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
    
+   LPF_Order = 26;
    filterCoeffs = malloc(sizeof(double) * LPF_Order);
    if (filterCoeffs == NULL)
       {
@@ -119,6 +131,9 @@ int main(int argc, char **argv)
    
    long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
    
+   LPF_Fc = 11000;
+   
+   
    MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
    while(!feof(waveFilePtr))
       {
@@ -138,22 +153,30 @@ int main(int argc, char **argv)
          }
       
       PLLLock = CarrierTrackPLL(waveData, dataStreamReal, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
+      //CheckSum1 += CheckSum(dataStreamReal, nSamples);
       LowPassFilter(dataStreamReal, nSamples, filterCoeffs, LPF_Order);
-      NormalizingAGC(dataStreamReal, nSamples, 0.00025);      
+      //CheckSum2 += CheckSum(dataStreamReal, nSamples);
+      NormalizingAGC(dataStreamReal, nSamples, 0.00025);
+      //CheckSum3 += CheckSum(dataStreamReal, nSamples);
       //nSymbols = MMClockRecovery(dataStreamReal, nSamples, dataStreamSymbols, Fs, 10, 0.15);
       nSymbols = MMClockRecovery(dataStreamReal, nSamples, dataStreamSymbols, Fs, 8, 0.15);
       
       //fwrite(dataStreamReal, sizeof(float), nSamples,rawOutFilePtr);
       //fwrite(dataStreamSymbols, sizeof(float), nSymbols,rawOutFilePtr);
       nBits = ManchesterDecode(dataStreamSymbols, nSymbols, dataStreamBits, 1.0);
-      nFrames = FindSyncWords(dataStreamBits, nBits,  "1110110111100010000", 19);      
+      nFrames = FindSyncWords(dataStreamBits, nBits, "1110110111100010000", 19);      
       
       fwrite(dataStreamBits, sizeof(unsigned char), nBits, rawOutFilePtr);
       totalBits += nBits;
       totalFrames += nFrames;
       totalSymbols += nSymbols;
       totalSamples += nSamples;
-      printf("\r%0.1f%% %ld Ks : %ld Symbols : %ld Bits : %d Frames", ((float)( i) / num_samples)*100.0,totalSamples/1000, totalSymbols, totalBits, totalFrames);
+      if(((float)( i) / num_samples)*100.0 - percentComplete > 0.15)
+         {
+         percentComplete = ((float)( i) / num_samples)*100.0;
+         printf("\r%0.1f%% %ld Ks : %ld Symbols : %ld Bits : %d Frames", ((float)( i) / num_samples)*100.0,totalSamples/1000, totalSymbols, totalBits, totalFrames);      
+         }
+      
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
       /*for(idx=0; idx < nSamples; idx++)
          {
@@ -164,7 +187,7 @@ int main(int argc, char **argv)
          }*/
       }
    
-   
+   //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
    printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    fclose(rawOutFilePtr);
    fclose(waveFilePtr);

@@ -194,59 +194,59 @@ HEADER ReadWavHeader(FILE *waveFilePtr)
          
    //printf("Filepointer position: %x\n", ftell(waveFilePtr));
    //printf("Filepointer reference: %x\n",(unsigned int)waveFilePtr);
-   int read;
+   //int read;
    
    // read header parts
    //unsigned char test[5];
-   //read = fread(test, 4, 1, waveFilePtr);
+   //fread(test, 4, 1, waveFilePtr);
    //test[4] = '\0';   
    //printf("(1-4): %s \n", test);
    
-   read = fread(header.riff, sizeof(header.riff), 1, waveFilePtr);
+   fread(header.riff, sizeof(header.riff), 1, waveFilePtr);
    
-   read = fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
+   fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
    
    // convert little endian to big endian 4 byte int
    header.overall_size  = buffer4[0] | (buffer4[1]<<8) | (buffer4[2]<<16) | (buffer4[3]<<24);
 
-   read = fread(header.wave, sizeof(header.wave), 1, waveFilePtr);
+   fread(header.wave, sizeof(header.wave), 1, waveFilePtr);
    
-   read = fread(header.fmt_chunk_marker, sizeof(header.fmt_chunk_marker), 1, waveFilePtr);
+   fread(header.fmt_chunk_marker, sizeof(header.fmt_chunk_marker), 1, waveFilePtr);
    
-   read = fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
+   fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
    
    // convert little endian to big endian 4 byte integer
    header.length_of_fmt = buffer4[0] | (buffer4[1] << 8) | (buffer4[2] << 16) | (buffer4[3] << 24);
    
-   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr); 
+   fread(buffer2, sizeof(buffer2), 1, waveFilePtr); 
    //printf("%u %u \n", buffer2[0], buffer2[1]);
    
    header.format_type = buffer2[0] | (buffer2[1] << 8);
    
   
-   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
+   fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
   
    header.channels = buffer2[0] | (buffer2[1] << 8);
    
-   read = fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
+   fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
    
    header.sample_rate = buffer4[0] | (buffer4[1] << 8) | (buffer4[2] << 16) | (buffer4[3] << 24);
   
-   read = fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
+   fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
    
    header.byterate  = buffer4[0] | (buffer4[1] << 8) | (buffer4[2] << 16) | (buffer4[3] << 24);
    
-   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
+   fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
    
    header.block_align = buffer2[0] | (buffer2[1] << 8);
    
-   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
+   fread(buffer2, sizeof(buffer2), 1, waveFilePtr);
   
    header.bits_per_sample = buffer2[0] | (buffer2[1] << 8);
    
-   read = fread(header.data_chunk_header, sizeof(header.data_chunk_header), 1, waveFilePtr);
+   fread(header.data_chunk_header, sizeof(header.data_chunk_header), 1, waveFilePtr);
    
-   read = fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
+   fread(buffer4, sizeof(buffer4), 1, waveFilePtr);
   
    header.data_size = buffer4[0] | (buffer4[1] << 8) | (buffer4[2] << 16) | (buffer4[3] << 24 );
      
