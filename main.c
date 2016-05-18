@@ -10,7 +10,7 @@
 #include "LowPassFilter.h"
 #include "MMClockRecovery.h"
 #include "ManchesterDecode.h"
-
+#include "ByteSync.h"
 
 #define TRUE 1
 #define FALSE 0
@@ -25,10 +25,10 @@ int main(int argc, char **argv)
    float *dataStreamReal, *dataStreamSymbols;
    float PLLLock;
    float normFactor;
-   unsigned long chunksize = 50000, nSamples, i=0, idx, nSymbols, nBits;
+   unsigned long chunksize = 50000, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
    unsigned char *dataStreamBits;
    float Fs;
-   int LPF_Order = 26;
+   int LPF_Order = 26, nFrames=0, nIFrames=0, totalIFrames=0, totalFrames=0;
    float LPF_Fc = 11000;
    double *filterCoeffs;
    
@@ -74,6 +74,7 @@ int main(int argc, char **argv)
       exit(1);
       }
     
+      
    // get file path
    char cwd[1024];
    if (getcwd(cwd, sizeof(cwd)) != NULL) 
@@ -111,7 +112,8 @@ int main(int argc, char **argv)
    //printf("Filepointer position: %x\n", ftell(waveFilePtr));
    header = ReadWavHeader(waveFilePtr);
    Fs = (float)header.sample_rate;
-   printHeaderInfo(header);
+   printf("Sample Rate %.2fKHz\n", Fs/1000.0);
+   //printHeaderInfo(header);
    //double complex test[] = {2,2,2,2};
    //printf("%d: Avg value: %f\n",i,StaticGain(test, 4, 1.0));
    
@@ -128,7 +130,7 @@ int main(int argc, char **argv)
          }
          
       i+=nSamples;
-      printf("\r%0.1f%% complete", ((float)( i) / num_samples)*100.0);
+      
       //normalize
       for(idx=0; idx < nSamples; idx++)
          {
@@ -144,7 +146,14 @@ int main(int argc, char **argv)
       //fwrite(dataStreamReal, sizeof(float), nSamples,rawOutFilePtr);
       //fwrite(dataStreamSymbols, sizeof(float), nSymbols,rawOutFilePtr);
       nBits = ManchesterDecode(dataStreamSymbols, nSymbols, dataStreamBits, 1.0);
+      nFrames = FindSyncWords(dataStreamBits, nBits,  "1110110111100010000", 19);      
+      
       fwrite(dataStreamBits, sizeof(unsigned char), nBits, rawOutFilePtr);
+      totalBits += nBits;
+      totalFrames += nFrames;
+      totalSymbols += nSymbols;
+      totalSamples += nSamples;
+      printf("\r%0.1f%% %ld Ks : %ld Symbols : %ld Bits : %d Frames", ((float)( i) / num_samples)*100.0,totalSamples/1000, totalSymbols, totalBits, totalFrames);
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
       /*for(idx=0; idx < nSamples; idx++)
          {
@@ -162,5 +171,15 @@ int main(int argc, char **argv)
    
    // cleanup before quitting
    free(filename);
+   free(dataStreamReal);
+   free(dataStreamSymbols);
+   free(filterCoeffs);
+   free(dataStreamReal);
+   free(waveData);
+   free(dataStreamBits);
+   
+   //quit
+   fflush(stdout);
    return 0;
-   }
+   } 
+   

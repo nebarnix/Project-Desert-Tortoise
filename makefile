@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-Wall -O2
-LIBS = -lkoolplot -lgdi32 -lcomdlg32 -luuid -loleaut32 -lole32 -lstdc++ -lsupc++
+CFLAGS=-Wall  -O1 -pipe -fomit-frame-pointer -march=i686
+LIBS =
 
 src = $(wildcard *.c)
 obj = $(src:.c=.o)

@@ -5,18 +5,18 @@
 unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, float *dataStreamOut, int Fs, float stepRange, float kp)
    {
    static char firstTime = 1;
-   double baud=8320*2-1;
-   static double stepSize;
+   static double baud = 8320*2 - 1;
+   static double stepSize=3;
    double stepMax = Fs/(baud-stepRange);
    double stepMin = Fs/(baud+stepRange);
    double currentBit;
    double Error;
-   unsigned long count = 1;
+   unsigned long count = 0;
    static double nextSample = 0;
-   static double sampleLast = 1;
+   static double sampleLast = 0;
    if(firstTime == 1)
       {
-      stepSize= Fs/(baud);
+      stepSize = Fs/(baud);
       firstTime = 0;
       }
    
@@ -36,7 +36,7 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
       //Updates Step Size
       stepSize = stepSize + kp*Error;
       
-      //Limits Step size
+      //Limits Step size3
       if( stepSize > stepMax )
          stepSize = stepMax;
       
@@ -48,7 +48,8 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
       nextSample = nextSample + stepSize;
       sampleLast = currentBit;
       }
-   nextSample = numSamples - nextSample;
+   nextSample =  nextSample - numSamples;
+   //return count-1; //does this make things better? YES
    return count;
    }
 

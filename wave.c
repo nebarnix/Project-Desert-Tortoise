@@ -218,7 +218,8 @@ HEADER ReadWavHeader(FILE *waveFilePtr)
    // convert little endian to big endian 4 byte integer
    header.length_of_fmt = buffer4[0] | (buffer4[1] << 8) | (buffer4[2] << 16) | (buffer4[3] << 24);
    
-   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr); printf("%u %u \n", buffer2[0], buffer2[1]);
+   read = fread(buffer2, sizeof(buffer2), 1, waveFilePtr); 
+   //printf("%u %u \n", buffer2[0], buffer2[1]);
    
    header.format_type = buffer2[0] | (buffer2[1] << 8);
    

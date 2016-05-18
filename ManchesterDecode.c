@@ -64,5 +64,6 @@ unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsi
          }      
       }
    //fprintf([num2str(idxerr) ' errors\n']);
-   return idx2-1;
+   return idx2;
+   //return idx2-1; //seems to be the right answer..?
    }

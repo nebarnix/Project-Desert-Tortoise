@@ -17,13 +17,14 @@ void LowPassFilter(float *dataStream, unsigned long nSamples, double *filterCoef
     * The oldest sample in the circular buffer is overwritten.
     */
    
-   int k;
+   unsigned int idx2;
    static char firsttime = 1;
    //static double h[] = {0,-0.000109655250327,0.000316665647855,0.001676613642539,-0.000476921998763,-0.007259094943430,-0.003189409960007, 0.019323908569853,0.020108432578903,-0.036803451537779,-0.072012095309267,0.053204443013450,0.305238645914910,0.439963839264128,0.305238645914910,0.053204443013450,-0.072012095309267,-0.036803451537779,0.020108432578903,0.019323908569853,-0.003189409960007, -0.007259094943430,-0.000476921998763,0.001676613642539,0.000316665647855,-0.000109655250327, 0};
    static double *x; //circular buffer
    static int oldest = 0;
    double y;
-   long idx, idx2 = -N;
+   long idx;
+   //long idx2 = -N; //BUG! -N delay should only be for FIRST GO AROUND!
    if(firsttime == 1)
       {   
       firsttime = 0;
@@ -46,19 +47,38 @@ void LowPassFilter(float *dataStream, unsigned long nSamples, double *filterCoef
        * Their sum is the current output.
        */      
       y = 0;
-      for (k = 0; k < N; k++) 
+      for (idx2 = 0; idx2 < N; idx2++) 
          { 
-         y += filterCoeffs[k] * x[(oldest + k) % N]; 
-         } 
+         y += filterCoeffs[idx2] * x[(oldest + idx2) % N];         
+         }      
       
-      oldest = (oldest + 1) % N;
+      /* visualize buffers
+      printf("circ: ");
+      for(idx2 = 0; idx2 < N; idx2++)
+         {         
+         printf("%0.2f,", x[(oldest + 1 + idx2) % N]);
+         }
+      printf("\n");
+      
+       //spit out what is in the buffer
+      printf("raw:  ");
+      for(idx2 = 0; idx2 < N; idx2++)
+         {         
+         printf("%0.2f,", x[idx2]);
+         }
+      printf("\n");
+      */
       
       /*
        * Output the result.
        */
-      if(idx2 >= 0) //delay output so that the buffer can fill 
-          dataStream[idx2] = y;
-      idx2++;
+      //if(idx2 >= 0) //delay output so that the buffer can fill 
+      //   dataStream[idx2] = y;
+      //idx2++;
+      dataStream[idx] = y; //you have to live with the delay, otherwise, how to handle multiple calls?
+      //if(idx > 30)
+      //   exit(1);
+      oldest = (oldest + 1) % N;
       }
    }
    

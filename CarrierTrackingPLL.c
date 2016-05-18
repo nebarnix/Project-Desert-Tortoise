@@ -25,7 +25,7 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
       d_beta = (4 * bw * bw) / (1 + 2 * damp * bw + bw * bw);
       
       d_phase = 0.1; //something not zero for benchmarking the function (sin(0) is probably a shortcut)
-      d_freq  = 2.0*M_PI*1267.0 / Fs;
+      d_freq  = 2.0*M_PI*0 / Fs;
       d_max_freq   = 2.0*M_PI*freqRange/Fs; //+/-4500 for 2m polar sats
       d_min_freq   = -2.0*M_PI*freqRange/Fs;
       firstLock = 0;
@@ -53,7 +53,7 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
            
    for (idx=1; idx<nSamples; idx++)
       {
-       //%sincosf(d_phase, &t_imag, &t_real);
+       //sincos(d_phase, &t_imag, &t_real);
        
        /*progress = progress+1;
        if(progress >= 1*onePercent)        
@@ -68,8 +68,8 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
            progress = 0;
        end*/
        
-       t_imag = csinf(d_phase);
-       t_real = ccosf(d_phase);    
+       t_imag = sinf(d_phase);
+       t_real = cosf(d_phase);    
        
        //t_imag = sin_lookup(d_phase);
        //t_real = cos_lookup(d_phase);
@@ -152,7 +152,7 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
       //d_locksig > d_lock_threshold (0.01)
       if(d_locksig > d_lock_threshold && firstLock == 0) //This needs to be a moving average or at least somewhat smoothed
          {
-         printf("PLL locked at %f\n", d_freq*Fs/(2.0*M_PI));
+         printf(" : PLL locked at %0.2fHz\n", d_freq*Fs/(2.0*M_PI));
          //fprintf(['PLL locked at ' num2str(d_freq*Fs/(2*pi)) '\n']);
          firstLock = idx;
          //d_alpha = 0.001; //decrease to tracking gain
