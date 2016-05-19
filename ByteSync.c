@@ -21,7 +21,7 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
    static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;
    int framesFound=0;
    long idx;
-   unsigned char byte=0;
+   unsigned char byte=0, zero=0, one=1;
    
    if(firstTime == 1)
       {
@@ -67,35 +67,11 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
          framesFound++;
          bitIdx=3;
          byte=0;
+         zero = 0;
+         one = 1;
          //bitIdx=;
-         }        
+         }       
       
-      //since we've already advanced to bit 19 of the frame....
-      //for(frameByteIdx=0; frameByteIdx < 103; frameByteIdx++) //minor frames are 103 bytes long
-      //11101101 11100010 000
-      if(minorFrameShiftFlag == 1)
-         {
-         if(bitStreamIn[idx]=='0')               
-            byte = byte << 1; //This is a zero, just shift           
-         else
-            {
-            byte = byte << 1; //This is a one, set the bit then shift               
-            byte = byte | 1;
-            }
-         
-         bitIdx++;   
-         if(bitIdx > 7)
-            {
-            //minorFrame[frameByteIdx]=byte;
-            fprintf(minorFrameFile,"%.2X ",byte);
-            frameByteIdx++;
-            if(frameByteIdx > 103)
-               {
-               minorFrameShiftFlag = 0;
-               fprintf(minorFrameFile,"\n");
-               }
-            }
-         }  
          
       //Look for Inverse Syncword
       syncIndicator = 1;
@@ -112,11 +88,53 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
             }         
          }
          
-      if(syncIndicator == 1)
-         {         
-         framesFound++;         
-         }      
+      if(syncIndicator == 1 && minorFrameShiftFlag == 0)
+         {
+         //gotoxy(1,1);
+         
+         fprintf(minorFrameFile,"%.2X ",0b11101101);
+         fprintf(minorFrameFile,"%.2X ",0b11100010);
+         frameByteIdx = 2;
+         minorFrameShiftFlag = 1;
+         framesFound++;
+         bitIdx=3;
+         byte=0;
+         zero = 1;
+         one = 0;
+         //bitIdx=;
+         }     
+      
       //advance oldest bit pointer
+      //since we've already advanced to bit 19 of the frame....
+      //for(frameByteIdx=0; frameByteIdx < 103; frameByteIdx++) //minor frames are 103 bytes long
+      //11101101 11100010 000
+      if(minorFrameShiftFlag == 1)
+         {
+         if(bitStreamIn[idx]=='0')     
+            {
+            byte = byte << 1; //This is a zero, just shift
+            byte = byte | zero;
+            }
+         else
+            {
+            byte = byte << 1; //This is a one, set the bit then shift               
+            byte = byte | one;
+            }
+         
+         bitIdx++;   
+         if(bitIdx > 7)
+            {
+            //minorFrame[frameByteIdx]=byte;
+            fprintf(minorFrameFile,"%.2X ",byte);
+            frameByteIdx++;
+            if(frameByteIdx > 103)
+               {
+               minorFrameShiftFlag = 0;
+               fprintf(minorFrameFile,"\n");
+               }
+            }
+         }  
+         
       oldest = (oldest + 1) % syncWordLength;
       }
    return framesFound;   
