@@ -87,7 +87,7 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    unsigned char data_buffer[size_of_each_sample];
    int  size_is_correct = TRUE;
    int read;
-   float realVal;
+   float realVal, imagVal;
    int16_t data_in_channel = 0;
    
    // make sure that the bytes-per-sample is completely divisible by num.of channels
@@ -150,12 +150,16 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                if(xchannels == 0)
                   {
                   realVal =  data_in_channel/32768.0;
+                  //realVal =  data_in_channel;
                   //printf("%2x %2x\n", data_buffer[xchannels*bytes_in_each_channel+1],  data_buffer[xchannels*bytes_in_each_channel+0]); 
                   //printf("%f\n", realVal);
                   }
                else
                   {
-                  waveData[i] = realVal + ( data_in_channel/32768.0) * I;
+                  imagVal = data_in_channel/32768.0;                  
+                  waveData[i] = realVal + imagVal * I;
+                  //printf("%d,",sizeof(waveData[i]));
+                  //waveData[i] = realVal + ( data_in_channel/32768.0) * I;
                   //printf("\n");
                   }
                }

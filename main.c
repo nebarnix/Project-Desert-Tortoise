@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <complex.h>
@@ -15,33 +16,75 @@
 #define TRUE 1
 #define FALSE 0
 
+//int spaceCraftID, dayNum, 
 
-unsigned int CheckSum(float *dataStreamReal, unsigned long nSamples)
+unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    {
    unsigned int sum=0;
    unsigned long idx;
    for(idx = 0; idx < nSamples; idx++)
-      sum += dataStreamReal[idx];
+      {
+      sum += (dataStreamReal[idx]);
+      //printf("%.2X %ld,",dataStreamReal[idx]);
+      }      
+   //printf("\n");
    return sum;
    }
 
 int main(int argc, char **argv) 
    {
-   FILE *waveFilePtr;
-   FILE *rawOutFilePtr;
-   char *filename;
+   FILE *waveFilePtr=NULL;
+   FILE *rawOutFilePtr=NULL;
+   FILE *minorFrameFile=NULL;
+   
    HEADER header;
-   double complex *waveData;
-   float *dataStreamReal, *dataStreamSymbols;
-   float PLLLock, percentComplete=0;
-   float normFactor;
-   unsigned long chunksize = 50000, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
-   unsigned char *dataStreamBits;
+   
+   unsigned long chunksize = 100000, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
+   
+   float *dataStreamReal=NULL, *dataStreamSymbols=NULL;
    float Fs;
-   int LPF_Order, nFrames=0, totalFrames=0;
-   float LPF_Fc;
-   double *filterCoeffs;
-   //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
+   float LPF_Fc;   
+   float PLLLock, percentComplete=0;
+   float normFactor=0;
+   
+   double *filterCoeffs=NULL;
+   double complex *waveData=NULL;
+   
+   unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
+   int LPF_Order, nFrames=0, totalFrames=0,c;
+   
+   unsigned char *dataStreamBits=NULL;
+   char *filename=NULL;
+   char *cvalue = NULL;   
+   
+   while ((c = getopt (argc, argv, "nc:")) != -1)
+      {
+      switch (c)
+         {
+         case 'n':
+            cvalue = optarg;
+            normFactor = atoi(cvalue);
+            printf("Static Gain Override %f\n",normFactor);
+            break;
+         case 'c':
+            cvalue = optarg;
+            chunksize = atoi(cvalue);
+            printf("Using %ld chunksize\n",chunksize);
+            break;
+         case '?':
+            if (optopt == 'c' || optopt == 'n')
+               fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+            else if (isprint (optopt))
+               fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+            else
+               fprintf (stderr,
+               "Unknown option character `\\x%x'.\n",
+               optopt);
+               return 1;
+         default:
+            abort ();
+         }
+      }
    
    LPF_Order = 26;
    filterCoeffs = malloc(sizeof(double) * LPF_Order);
@@ -99,9 +142,9 @@ int main(int argc, char **argv)
          printf("No wave file specified\n");
          return 1;
          }
-   
+
       strcat(filename, "/");
-      strcat(filename, argv[1]);
+      strcat(filename, argv[optind]);
       printf("%s\n", filename);
       }
 
@@ -111,6 +154,14 @@ int main(int argc, char **argv)
    if (waveFilePtr == NULL)
       {
       printf("Error opening file\n");
+      exit(1);
+      }
+      
+   
+   minorFrameFile = fopen("minorFrame.txt", "w");
+   if (minorFrameFile == NULL)
+      {
+      printf("Error opening output file\n");
       exit(1);
       }
       
@@ -124,23 +175,23 @@ int main(int argc, char **argv)
    //printf("Filepointer position: %x\n", ftell(waveFilePtr));
    header = ReadWavHeader(waveFilePtr);
    Fs = (float)header.sample_rate;
-   printf("Sample Rate %.2fKHz\n", Fs/1000.0);
+   long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
+   
+   printf("Sample Rate %.2fKHz. Total samples %ld\n", Fs/1000.0,num_samples);
    //printHeaderInfo(header);
    //double complex test[] = {2,2,2,2};
    //printf("%d: Avg value: %f\n",i,StaticGain(test, 4, 1.0));
    
-   long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
-   
-   LPF_Fc = 11000;
-   
-   
+   LPF_Fc = 11000;   
    MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
    while(!feof(waveFilePtr))
-      {
+      { //num_samples
       nSamples = GetComplexWaveChunk(waveFilePtr, header, waveData, chunksize);
-      if(i == 0)
+      
+      if(i == 0 && normFactor == 0)
          {
          normFactor = StaticGain(waveData, nSamples, 1.0);
+         //normFactor = 0.000041;
          printf("Normalization Factor: %f\n",normFactor);
          }
          
@@ -149,32 +200,34 @@ int main(int argc, char **argv)
       //normalize
       for(idx=0; idx < nSamples; idx++)
          {
+         //if(feof(waveFilePtr))
+            
          waveData[idx] *= normFactor;         
          }
-      
+      CheckSum1 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
       PLLLock = CarrierTrackPLL(waveData, dataStreamReal, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
-      //CheckSum1 += CheckSum(dataStreamReal, nSamples);
+      //CheckSum1 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       LowPassFilter(dataStreamReal, nSamples, filterCoeffs, LPF_Order);
-      //CheckSum2 += CheckSum(dataStreamReal, nSamples);
+      //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       NormalizingAGC(dataStreamReal, nSamples, 0.00025);
-      //CheckSum3 += CheckSum(dataStreamReal, nSamples);
+      //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //nSymbols = MMClockRecovery(dataStreamReal, nSamples, dataStreamSymbols, Fs, 10, 0.15);
       nSymbols = MMClockRecovery(dataStreamReal, nSamples, dataStreamSymbols, Fs, 8, 0.15);
       
       //fwrite(dataStreamReal, sizeof(float), nSamples,rawOutFilePtr);
       //fwrite(dataStreamSymbols, sizeof(float), nSymbols,rawOutFilePtr);
       nBits = ManchesterDecode(dataStreamSymbols, nSymbols, dataStreamBits, 1.0);
-      nFrames = FindSyncWords(dataStreamBits, nBits, "1110110111100010000", 19);      
+      nFrames = FindSyncWords(dataStreamBits, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       fwrite(dataStreamBits, sizeof(unsigned char), nBits, rawOutFilePtr);
       totalBits += nBits;
       totalFrames += nFrames;
       totalSymbols += nSymbols;
       totalSamples += nSamples;
-      if(((float)( i) / num_samples)*100.0 - percentComplete > 0.15)
+      if((((float)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(waveFilePtr))
          {
          percentComplete = ((float)( i) / num_samples)*100.0;
-         printf("\r%0.1f%% %ld Ks : %ld Symbols : %ld Bits : %d Frames", ((float)( i) / num_samples)*100.0,totalSamples/1000, totalSymbols, totalBits, totalFrames);      
+         printf("\r%0.1f%% %0.3f Ks : %ld Symbols : %ld Bits : %d Frames", ((float)( i) / num_samples)*100.0,(totalSamples)/1000.0, totalSymbols, totalBits, totalFrames);      
          }
       
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);

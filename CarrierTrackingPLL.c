@@ -51,7 +51,7 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
    //printf("%s",MSG);
    
            
-   for (idx=1; idx<nSamples; idx++)
+   for (idx=0; idx<nSamples; idx++)
       {
        //sincos(d_phase, &t_imag, &t_real);
        
