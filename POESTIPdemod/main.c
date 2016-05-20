@@ -198,7 +198,9 @@ int main(int argc, char **argv)
       if((((double)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(waveFilePtr))
          {
          percentComplete = ((double)( i) / num_samples)*100.0;
-         printf("\r%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);      
+         printf("\r");
+         //printf("\n");
+         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
          }
       
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
