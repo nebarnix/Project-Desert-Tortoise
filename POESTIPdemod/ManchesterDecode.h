@@ -1,4 +1,4 @@
 #ifndef MANCHESTERDECODE_H
 #define MANCHESTERDECODE_H
-unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsigned char *bitStream, float resyncThreshold);
+unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, unsigned long nSymbols, unsigned char *bitStream, double resyncThreshold);
 #endif

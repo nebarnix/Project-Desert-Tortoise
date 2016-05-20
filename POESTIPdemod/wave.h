@@ -12,7 +12,7 @@ typedef struct HEADER
    unsigned char wave[4];                      // WAVE string
    unsigned char fmt_chunk_marker[4];          // fmt string with trailing null char
    unsigned int length_of_fmt;                 // length of the format data
-   unsigned int format_type;                   // format type. 1-PCM, 3- IEEE float, 6 - 8bit A law, 7 - 8bit mu law
+   unsigned int format_type;                   // format type. 1-PCM, 3- IEEE double, 6 - 8bit A law, 7 - 8bit mu law
    unsigned int channels;                      // no.of channels
    unsigned int sample_rate;                   // sampling rate (blocks per second)
    unsigned int byterate;                      // SampleRate * NumChannels * BitsPerSample/8
@@ -24,6 +24,6 @@ typedef struct HEADER
 
 void printHeaderInfo(HEADER header);
 HEADER ReadWavHeader(FILE *waveFilePtr);
-int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, int nSamples);   
-char* seconds_to_time(float raw_seconds);
+int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples);   
+char* seconds_to_time(double raw_seconds);
 #endif

@@ -2,7 +2,7 @@
 #include "ManchesterDecode.h"
 #include "MMClockRecovery.h"
 
-unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsigned char *bitStream, float resyncThreshold)
+unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, unsigned long nSymbols, unsigned char *bitStream, double resyncThreshold)
    {
    //convert to bits from raw manchester bits
    //resyncThreshold = 1;
@@ -10,9 +10,9 @@ unsigned long ManchesterDecode(float *dataStreamIn, unsigned long nSymbols, unsi
    unsigned long idx, idx2=0;
    static int clockmod = 0;
    static unsigned long idxerr=1;
-   static float currentSample=0;
-   static float prevSample=0;
-   static float prevPrevSample=0;
+   static double currentSample=0;
+   static double prevSample=0;
+   static double prevPrevSample=0;
    static char evenOddCounter=0;
    
    unsigned char currentBit;

@@ -13,7 +13,7 @@
    printf("%d bits and %d Frames\n",strlen(dataStreamBits), numFrames);
    }*/
 
-int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
+int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
    {
    int idx2;
    static char firstTime = 1;
@@ -59,7 +59,7 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {
          //gotoxy(1,1);
-         
+         fprintf(minorFrameFile,"%0.5f ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
          frameByteIdx = 2;
@@ -91,7 +91,8 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {
          //gotoxy(1,1);
-         
+         //printf("Backwards?\n");
+         fprintf(minorFrameFile,"%0.5f ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
          frameByteIdx = 2;
@@ -124,11 +125,10 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
          bitIdx++;   
          if(bitIdx > 7)
             {
-            bitIdx = 0;
-            
             //minorFrame[frameByteIdx]=byte;
             fprintf(minorFrameFile,"%.2X ",byte);
             byte = 0;
+            bitIdx = 0;
             frameByteIdx++;
             if(frameByteIdx > 103)
                {

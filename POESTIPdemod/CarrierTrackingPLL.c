@@ -3,21 +3,21 @@
 #include <stdio.h>
 #include "CarrierTrackPLL.h"
 
-float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigned int nSamples, float Fs, float freqRange, float d_lock_threshold, float loopbw_acq, float loopbw_track)
+double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsigned int nSamples, double Fs, double freqRange, double d_lock_threshold, double loopbw_acq, double loopbw_track)
    {
-   float bw = loopbw_acq;
-   float sample_phase;
+   double bw = loopbw_acq;
+   double sample_phase;
    
-   static float firstLock = -1;
+   static double firstLock = -1;
    
-   static float damp=1;
-   static float d_alpha;
-   static float d_beta;
+   static double damp=1;
+   static double d_alpha;
+   static double d_beta;
       
-   static float d_phase;
-   static float d_freq;
-   static float d_max_freq;
-   static float d_min_freq;
+   static double d_phase;
+   static double d_freq;
+   static double d_max_freq;
+   static double d_min_freq;
    
    if(firstLock == -1)
       {     
@@ -30,20 +30,20 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
       d_min_freq   = -2.0*M_PI*freqRange/Fs;
       firstLock = 0;
       }
-   static float d_locksig = 0;
-   static float lockSigAlpha = 0.00005;
+   static double d_locksig = 0;
+   static double lockSigAlpha = 0.00005;
    
-   float t_imag;
-   float t_real;
-   float error;
+   double t_imag;
+   double t_real;
+   double error;
    unsigned int idx;
    //dataStreamOut = zeros(1,size(dataStreamIn,2));
    //d_freqi = zeros(1,size(dataStreamIn,2));
    //d_locksigi = zeros(1,size(dataStreamIn,2));
    
-   //float progress = 0;
-   //float percentcomplete=0;
-   //float onePercent = numel(dataStreamOut) / 100;
+   //double progress = 0;
+   //double percentcomplete=0;
+   //double onePercent = numel(dataStreamOut) / 100;
    
    //printf("Carrier Tracking PLL:");
    //MSG = [convertnum(percentcomplete) '%'];
@@ -68,8 +68,8 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
            progress = 0;
        end*/
        
-       t_imag = sinf(d_phase);
-       t_real = cosf(d_phase);    
+       t_imag = sin(d_phase);
+       t_real = cos(d_phase);    
        
        //t_imag = sin_lookup(d_phase);
        //t_real = cos_lookup(d_phase);
@@ -88,13 +88,13 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
        
        realDataOut[idx] = cimagf(complexDataIn[idx] * (t_real+I*-t_imag) );
        
-       //float re, im;
+       //double re, im;
        //gr::sincosf(d_phase, &im, &re);
        //out[i] = (in[i]*gr_complex(re, -im)).imag();
        
        //Calculate Error
        //sample_phase = atan2_approx(imag(dataStreamIn(idx)),real(dataStreamIn(idx)));
-       sample_phase = atan2f(cimagf(complexDataIn[idx]),crealf(complexDataIn[idx]));
+       sample_phase = atan2(cimag(complexDataIn[idx]),creal(complexDataIn[idx]));
        
        //error = mod_2pi(sample_phase-d_phase);
        
@@ -128,7 +128,7 @@ float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigne
       ///////////d_freqi(idx) = d_freq;
       
       //d_locksig = d_locksig * (1.0 - d_alpha) + d_alpha*(real(dataStreamIn(idx)) * t_real + imag(dataStreamIn(idx)) * t_imag);
-      d_locksig = d_locksig * (1.0 - lockSigAlpha) + lockSigAlpha*(crealf(complexDataIn[idx]) * t_real + cimagf(complexDataIn[idx]) * t_imag);
+      d_locksig = d_locksig * (1.0 - lockSigAlpha) + lockSigAlpha*(creal(complexDataIn[idx]) * t_real + cimag(complexDataIn[idx]) * t_imag);
        
       //moving average filter the locksig. For loops are slow in matlab.
       //Circshift instead?

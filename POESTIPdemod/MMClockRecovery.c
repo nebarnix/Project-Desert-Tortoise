@@ -2,7 +2,7 @@
 #include "MMClockRecovery.h"
 
 //M&M Clock Recovery Loop (interpolating version!)
-unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, float *dataStreamOut, int Fs, float stepRange, float kp)
+unsigned long MMClockRecovery(double *dataStreamIn, double *dataStreamInTime,  unsigned long numSamples, double *dataStreamOut, int Fs, double stepRange, double kp)
    {
    static char firstTime = 1;
    static double baud = 8320*2 - 1;
@@ -27,6 +27,7 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
       currentBit  = dataStreamIn[(unsigned int)(rint(nextSample))];
       //dataStreamOutTime(count) = dataStreamInTime(rint(nextSample));
       dataStreamOut[count] = currentBit;
+      dataStreamInTime[count] = dataStreamInTime[(unsigned int)(rint(nextSample))];
       //Ind(count)  = nextSample;
       count = count + 1;
       
@@ -41,8 +42,7 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
          stepSize = stepMax;
       
       if( stepSize < stepMin )
-         stepSize = stepMin;
-      
+         stepSize = stepMin;      
       
       //Updates nextSample
       nextSample = nextSample + stepSize;
@@ -53,7 +53,7 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
    return count;
    }
 
-int sign(float x) 
+int sign(double x) 
    {
    return (x > 0) - (x < 0);
    }

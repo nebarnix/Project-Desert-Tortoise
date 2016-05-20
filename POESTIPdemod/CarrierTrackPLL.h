@@ -1,6 +1,6 @@
 #ifndef CARRIERTRACKPLL_H
 #define CARRIERTRACKPLL_H
 
-float CarrierTrackPLL(double complex *complexDataIn, float *realDataOut, unsigned int nSamples, float Fs, float freqRange, float d_lock_threshold, float loopbw_acq, float loopbw_track);
+double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsigned int nSamples, double Fs, double freqRange, double d_lock_threshold, double loopbw_acq, double loopbw_track);
 
 #endif

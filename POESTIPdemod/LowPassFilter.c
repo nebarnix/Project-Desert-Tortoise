@@ -10,7 +10,7 @@
 /*
  * Sample the input signal (perhaps via A/D).
  */
-void LowPassFilter(float *dataStream, unsigned long nSamples, double *filterCoeffs, int N)
+void LowPassFilter(double *dataStream, unsigned long nSamples, double *filterCoeffs, int N)
    {
    /*
     * Insert the newest sample into an N-sample circular buffer.

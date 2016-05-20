@@ -1,5 +1,5 @@
 #ifndef MMCLOCKRECOVERY_H
 #define MMCLOCKRECOVERY_H
-unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, float *dataStreamOut, int Fs, float stepRange, float kp);
-int sign(float x);
+unsigned long MMClockRecovery(double *dataStreamIn,double *dataStreamInTime, unsigned long numSamples, double *dataStreamOut, int Fs, double stepRange, double kp);
+int sign(double x);
 #endif

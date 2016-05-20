@@ -48,7 +48,7 @@ void printHeaderInfo(HEADER header)
    printf("Size of each channel:%ld bytes\n", bytes_in_each_channel);
    
    // calculate duration of file
-   float duration_in_seconds = (float) header.overall_size / header.byterate;
+   double duration_in_seconds = (double) header.overall_size / header.byterate;
    printf("Approx.Duration in seconds=%f\n", duration_in_seconds);
    printf("Approx.Duration in h:m:s=%s\n", seconds_to_time(duration_in_seconds));
    
@@ -56,16 +56,15 @@ void printHeaderInfo(HEADER header)
 
 //Read nSamples of complex data from the wave file and store in array. Actual number of returned bytes is returned as an integer.
 //Advances file pointer, ready to read more new samples
-int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, int nSamples)
-{
-   //float maxsize;
-      //Check to make sure file is actually ready for reading
+int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples)
+   {
+   //Check to make sure file is actually ready for reading
    if (waveFilePtr == NULL)
       {
       printf("Error opening file\n");
       exit(1);
       }
-   if ( waveData == NULL)
+   if ( waveData == NULL || waveDataTime == NULL)
       {
       printf("Dude, allocate your fracking memory already. UGH. \n");
       exit(1);
@@ -87,8 +86,12 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    unsigned char data_buffer[size_of_each_sample];
    int  size_is_correct = TRUE;
    int read;
-   float realVal, imagVal;
+   static double time=0, Ts=0;
+   double realVal, imagVal;
    int16_t data_in_channel = 0;
+   
+   if(Ts == 0)
+      Ts = 1.0/(double)header.sample_rate;
    
    // make sure that the bytes-per-sample is completely divisible by num.of channels
    long bytes_in_each_channel = (size_of_each_sample / header.channels);
@@ -142,25 +145,20 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                else if (bytes_in_each_channel == 1) 
                   {
                   data_in_channel = data_buffer[0];
-                  }
-               
+                  }               
                
                //return normalized complex data
-               //maxsize = 1.0;
-               if(xchannels == 0)
+               if(xchannels == 0) //Real channel is first
                   {
-                  realVal =  data_in_channel/32768.0;
-                  //realVal =  data_in_channel;
-                  //printf("%2x %2x\n", data_buffer[xchannels*bytes_in_each_channel+1],  data_buffer[xchannels*bytes_in_each_channel+0]); 
-                  //printf("%f\n", realVal);
+                  realVal =  data_in_channel/32768.0;                  
                   }
-               else
+               else //Imaginary channel is second
                   {
                   imagVal = data_in_channel/32768.0;                  
                   waveData[i] = realVal + imagVal * I;
-                  //printf("%d,",sizeof(waveData[i]));
-                  //waveData[i] = realVal + ( data_in_channel/32768.0) * I;
-                  //printf("\n");
+                  time += Ts;
+                  waveDataTime[i] = time;
+                  //waveData[i] = imagVal + realVal * I;
                   }
                }
             
@@ -173,8 +171,8 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
             }            
          } //    for (i =1; i <= nSamples; i++) {         
       } //    if (size_is_correct) {         
-return nSamples;
-}
+   return nSamples;
+   }
 
 //READ HEADER FILE FUNCTION
 //Inputs file pointer to freshly opened file
@@ -263,7 +261,7 @@ HEADER ReadWavHeader(FILE *waveFilePtr)
  *  seconds - seconds value
  * Returns: hms - formatted string
  **/
-char* seconds_to_time(float raw_seconds)
+char* seconds_to_time(double raw_seconds)
    {
    char *hms;
    int hours, hours_residue, minutes, seconds, milliseconds;
