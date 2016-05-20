@@ -244,6 +244,7 @@ int main(int argc, char **argv)
    printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    fclose(rawOutFilePtr);
    fclose(waveFilePtr);
+   fclose(minorFrameFile);
    
    // cleanup before quitting
    free(filename);
