@@ -125,9 +125,10 @@ int FindSyncWords(unsigned char *bitStreamIn, unsigned long nSamples,  char *syn
          if(bitIdx > 7)
             {
             bitIdx = 0;
-            byte = 0;
+            
             //minorFrame[frameByteIdx]=byte;
             fprintf(minorFrameFile,"%.2X ",byte);
+            byte = 0;
             frameByteIdx++;
             if(frameByteIdx > 103)
                {
