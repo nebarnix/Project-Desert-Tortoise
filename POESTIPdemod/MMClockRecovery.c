@@ -21,11 +21,11 @@ unsigned long MMClockRecovery(float *dataStreamIn, unsigned long numSamples, flo
       firstTime = 0;
       }
       
-   while(round(nextSample) < numSamples)
+   while(rint(nextSample) < numSamples)
       {    
       //Stores Bit 
-      currentBit  = dataStreamIn[(unsigned int)(round(nextSample))];
-      //dataStreamOutTime(count) = dataStreamInTime(round(nextSample));
+      currentBit  = dataStreamIn[(unsigned int)(rint(nextSample))];
+      //dataStreamOutTime(count) = dataStreamInTime(rint(nextSample));
       dataStreamOut[count] = currentBit;
       //Ind(count)  = nextSample;
       count = count + 1;
