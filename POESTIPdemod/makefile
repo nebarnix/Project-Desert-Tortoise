@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-Wall  -O1 -pipe -fomit-frame-pointer -march=i686
-LIBS =
+CFLAGS=-Wall  -O1 -pipe -fomit-frame-pointer 
+LIBS = -lm
 
 src = $(wildcard *.c)
 obj = $(src:.c=.o)
