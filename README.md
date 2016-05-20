@@ -11,10 +11,10 @@ Wave file format parser adapted from http://truelogic.org/wordpress/2015/09/04/p
 Todo in decreasing order of importance:
 - [X] Add dynamic lowpass filter coefficient generator to compensate for varying input sample rates
 - [X] Add sync word detection for metrics
-- [ ] Add sync word byte conversion to form minor frame data. 
+- [X] Add sync word byte conversion to form minor frame data. 
 - [ ] Add in 8x interpolation for the M&M clock recovery routine for better performance. 
 - [ ] Keep track of local recording time and process it in parallel with the data. We will need this through ALL steps of processing
-- [ ] Add in ability to enable/disable/override things through command line options 
+- [X] Add in ability to enable/disable/override things through command line options 
 - [ ] Add soundcard input capability 
-- [ ] Add the rest of the processing chain starting with sync word detection
+- [ ] Add the rest of the processing chain
 - [ ] Add a gui to make pretty things happen in realtime
