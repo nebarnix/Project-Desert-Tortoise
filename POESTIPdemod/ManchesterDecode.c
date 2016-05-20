@@ -60,6 +60,7 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
               }        
            //bitTime(idx2)=rawTime(idx);  
          bitStream[idx2] = currentBit;
+         dataStreamInTime[idx2] = dataStreamInTime[idx];
          idx2++;
          }      
       }
