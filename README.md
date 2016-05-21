@@ -1,4 +1,5 @@
 # Project Desert Tortoise - Demodulator
+## And a tiny app to decode the ground transmitters as well
 A demodulator written in C to decode IQ data from the 137.35Mhz/137.77Mhz telemetry beacons from NOAA-15, NOAA-18, and NOAA-19
 
 See the background of this project here
@@ -18,3 +19,9 @@ Todo in decreasing order of importance:
 - [ ] Add soundcard input capability 
 - [ ] Add the rest of the processing chain
 - [ ] Add a gui to make pretty things happen in realtime
+
+# ARGOS demodulator
+- Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
+- Spits out packets to packets.txt. 
+- Takes in wave files. 
+- Mostly works! (NEW!)
