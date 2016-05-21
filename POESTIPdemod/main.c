@@ -189,7 +189,7 @@ int main(int argc, char **argv)
       //fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
       
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
-      nFrames = FindSyncWords(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
+      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       totalBits += nBits;
       totalFrames += nFrames;
