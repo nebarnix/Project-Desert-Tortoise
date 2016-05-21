@@ -155,7 +155,7 @@ int main(int argc, char **argv)
    Fs = (double)header.sample_rate;
    long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
    
-   printf("Sample Rate %.2fKHz. Total samples %ld\n", Fs/1000.0,num_samples);
+   printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
 
    LPF_Fc = 11000;   
    MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
@@ -228,6 +228,8 @@ int main(int argc, char **argv)
    free(dataStreamReal);
    free(waveData);
    free(dataStreamBits);
+   free(waveDataTime);
+   
    
    //quit
    //fflush(stdout);

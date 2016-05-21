@@ -41,17 +41,16 @@ void printHeaderInfo(HEADER header)
    long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);   
    printf("Number of samples:%lu \n", num_samples);
    
-   long size_of_each_sample = (header.channels * header.bits_per_sample) / 8;
+   long size_of_each_sample = (header.channels * header.bits_per_sample) / 8.0;
    printf("Size of each sample:%ld bytes\n", size_of_each_sample);
    
-   long bytes_in_each_channel = (size_of_each_sample / header.channels);
-   printf("Size of each channel:%ld bytes\n", bytes_in_each_channel);
+   int bytes_in_each_channel = (header.bits_per_sample) / 8.0;
+   printf("Size of each channel:%d bytes\n", bytes_in_each_channel);
    
    // calculate duration of file
    double duration_in_seconds = (double) header.overall_size / header.byterate;
    printf("Approx.Duration in seconds=%f\n", duration_in_seconds);
-   printf("Approx.Duration in h:m:s=%s\n", seconds_to_time(duration_in_seconds));
-   
+   printf("Approx.Duration in h:m:s=%s\n", seconds_to_time(duration_in_seconds));   
    }
 
 //Read nSamples of complex data from the wave file and store in array. Actual number of returned bytes is returned as an integer.
@@ -137,6 +136,10 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                if (bytes_in_each_channel == 4) 
                   {
                   data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
+                  data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | 
+                                    (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
+                                    (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
+                                    (data_buffer[xchannels*bytes_in_each_channel+3] << 24);
                   }                                               
                else if (bytes_in_each_channel == 2) 
                   {
