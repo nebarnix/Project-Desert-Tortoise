@@ -14,11 +14,13 @@ Todo in decreasing order of importance:
 - [X] Add sync word detection for metrics
 - [X] Add sync word byte conversion to form minor frame data. 
 - [ ] Add in 8x interpolation for the M&M clock recovery routine for better performance. 
-- [ ] Keep track of local recording time and process it in parallel with the data. We will need this through ALL steps of processing
+- [X] Keep track of local recording time and process it in parallel with the data. We will need this through ALL steps of processing
 - [X] Add in ability to enable/disable/override things through command line options 
+- [ ] Add support for RAW data files
 - [ ] Add soundcard input capability 
 - [ ] Add the rest of the processing chain
 - [ ] Add a gui to make pretty things happen in realtime
+- [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording)
 
 # ARGOS demodulator
 - Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
