@@ -27,3 +27,8 @@ Todo in decreasing order of importance:
 - Spits out packets to packets.txt. 
 - Takes in wave files. 
 - Mostly works! (NEW!)
+- TODO
+- [ ] Add support for RAW data files
+- [ ] Add support for soundcard input
+- [ ] Add support for real data input
+- [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
