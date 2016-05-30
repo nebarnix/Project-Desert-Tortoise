@@ -1,4 +1,4 @@
-# SDR SHarp Howto
+# SDR Sharp Howto
 1. Tune SDR# to 401.650Mhz
 2. Select RAW output mode
 3. Set bandwidth to 32khz
