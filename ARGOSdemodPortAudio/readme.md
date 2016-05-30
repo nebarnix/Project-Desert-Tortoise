@@ -4,4 +4,4 @@
 3. Set bandwidth to 32khz
 4. Set gain to 'unity gain'
 5. Run the program and enjoy your bits =3
-5. packets are saved to packets_DATE.txt file. 
+5. packets are saved to packets_YYYYMMDD_HHMMSS.txt file
