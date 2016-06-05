@@ -29,6 +29,14 @@ Todo in decreasing order of importance:
 - Mostly works! (NEW!)
 - TODO
 - [ ] Add support for RAW data files
-- [ ] Add support for soundcard input
+- [ ] Add support for real data input
+- [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
+
+# ARGOS demodulator using port audio
+- Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
+- Spits out packets to packets.txt. 
+- Takes in RAW I/Q audio from sdr# or similar. 
+- Mostly works! (NEW!)
+- TODO
 - [ ] Add support for real data input
 - [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
