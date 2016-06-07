@@ -21,7 +21,8 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
    static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;
    int framesFound=0;
    long idx;
-   unsigned char byte=0, zero=0, one=1;
+   unsigned char zero=0, one=1;
+   static unsigned char byte=0;
    
    if(firstTime == 1)
       {

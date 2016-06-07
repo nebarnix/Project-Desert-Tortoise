@@ -4,6 +4,7 @@
 #include <complex.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 //#include <koolplot.h>
 #include "wave.h"
 #include "AGC.h"
@@ -15,6 +16,14 @@
 
 #define TRUE 1
 #define FALSE 0
+
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
 //int spaceCraftID, dayNum, 
 
@@ -44,12 +53,17 @@ int main(int argc, char **argv)
    double *dataStreamReal=NULL, *dataStreamSymbols=NULL;
    double Fs;
    double LPF_Fc;   
-   double PLLLock, percentComplete=0;
+   double averagePhase, percentComplete=0;
    double normFactor=0;
+   //double SNROffset, signalBefore, signalAfter;
+   //double SNRa; 
+   //double SNRb;
+   //double SNRc;
+   //double SNR;
    
    double *filterCoeffs=NULL, *waveDataTime=NULL;
    double complex *waveData=NULL;
-   
+   char qualityString[20];
    
    unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
    int LPF_Order, nFrames=0, totalFrames=0,c;
@@ -159,6 +173,12 @@ int main(int argc, char **argv)
 
    LPF_Fc = 11000;   
    MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
+   
+   //SNRa = -1493.81599470148; 
+   //SNRb = 6.63640578167269E-02;
+   //SNRc = -1.67914647611797E-06;   
+   //SNROffset = (Fs / ((SNRa + (SNRb * Fs)) - (SNRc * (pow(Fs , 2)))));
+   
    while(!feof(waveFilePtr))
       { 
       nSamples = GetComplexWaveChunk(waveFilePtr, header, waveData, waveDataTime, chunkSize);
@@ -178,10 +198,13 @@ int main(int argc, char **argv)
           waveData[idx] *= normFactor;         
          }
       //CheckSum0 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
-      PLLLock = CarrierTrackPLL(waveData, dataStreamReal, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
       //CheckSum1 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
+      //signalBefore = FindSignalAmplitude(dataStreamReal, chunkSize, 0.0001);
       LowPassFilter(dataStreamReal, nSamples, filterCoeffs, LPF_Order);
+      //signalAfter = FindSignalAmplitude(dataStreamReal, chunkSize, 0.0001);
       //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
+      //SNR = 10.0 * log10(pow(signalBefore,2) / pow((signalBefore - signalAfter) ,2 )) - SNROffset;
       NormalizingAGC(dataStreamReal, nSamples, 0.00025);
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 9, 0.15);      
@@ -200,7 +223,18 @@ int main(int argc, char **argv)
          percentComplete = ((double)( i) / num_samples)*100.0;
          printf("\r");
          //printf("\n");
-         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
+         averagePhase = 10.0 * log10( pow(1.5708 - averagePhase,2));
+         
+         if(averagePhase > -4.3)
+            snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_GREEN,averagePhase,ANSI_COLOR_RESET);
+         else if(averagePhase > -5)
+            snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_YELLOW,averagePhase,ANSI_COLOR_RESET);
+         else if(averagePhase > -6)
+            snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_YELLOW,averagePhase,ANSI_COLOR_RESET);
+         else
+            snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_RED,averagePhase,ANSI_COLOR_RESET);
+         
+         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames : %s", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames, qualityString);
          }
       
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
@@ -216,9 +250,9 @@ int main(int argc, char **argv)
    //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
    printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    //fclose(rawOutFilePtr);
-   fclose(waveFilePtr);
-   fclose(minorFrameFile);
    
+   if (fclose(waveFilePtr)) { printf("error closing file."); exit(-1); }
+   if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
    
    // cleanup before quitting
    free(filename);

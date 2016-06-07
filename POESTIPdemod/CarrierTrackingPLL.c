@@ -10,7 +10,7 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsig
    
    static double firstLock = -1;
    
-   static double damp=1;
+   static double damp=0.999;
    static double d_alpha;
    static double d_beta;
       
@@ -18,6 +18,8 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsig
    static double d_freq;
    static double d_max_freq;
    static double d_min_freq;
+   
+   static complex double averagePhase; 
    
    if(firstLock == -1)
       {     
@@ -29,14 +31,18 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsig
       d_max_freq   = 2.0*M_PI*freqRange/Fs; //+/-4500 for 2m polar sats
       d_min_freq   = -2.0*M_PI*freqRange/Fs;
       firstLock = 0;
+      averagePhase=1.5708;
       }
    static double d_locksig = 0;
    static double lockSigAlpha = 0.00005;
    
    double t_imag;
    double t_real;
-   double error;
+   double PLLOutSamplePhase,error;
+   double averagePhaseAlpha=0.00005;
    unsigned int idx;
+   
+   complex double PLLOutSample;
    //dataStreamOut = zeros(1,size(dataStreamIn,2));
    //d_freqi = zeros(1,size(dataStreamIn,2));
    //d_locksigi = zeros(1,size(dataStreamIn,2));
@@ -86,7 +92,17 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsig
        
        //Shift frequency by loop phase
        
-       realDataOut[idx] = cimagf(complexDataIn[idx] * (t_real+I*-t_imag) );
+       //shift the frequency by the carrier 
+       PLLOutSample = complexDataIn[idx] * (t_real+I*-t_imag);
+       
+       //data bits are in the imaginary part
+       realDataOut[idx] = cimag(PLLOutSample);
+       
+       //calculate phase angle for quality estimation 
+       PLLOutSamplePhase = atan2(cimag(PLLOutSample),creal(PLLOutSample));
+       
+       //running average of the absolute value of the phase
+       averagePhase = averagePhase * (1.0 - averagePhaseAlpha) + averagePhaseAlpha * fabs(PLLOutSamplePhase);
        
        //double re, im;
        //gr::sincosf(d_phase, &im, &re);
@@ -164,7 +180,7 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, unsig
          }
       }
    //printf("%f\t%f\n",d_locksig,d_freq*Fs/(2.0*M_PI));   
-   return firstLock;
+   return averagePhase;
    }
 /*
 for progress=1:msgCount

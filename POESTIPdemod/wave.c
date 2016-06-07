@@ -82,6 +82,7 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    
    long i =0;
    long size_of_each_sample = (header.channels * header.bits_per_sample) / 8;
+   long double maxsize=0;
    unsigned char data_buffer[size_of_each_sample];
    int  size_is_correct = TRUE;
    int read;
@@ -102,7 +103,7 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    
    if (size_is_correct) 
       {
-      /*switch (header.bits_per_sample)
+      switch (header.bits_per_sample)
             {
             case 8:
                maxsize = 128;
@@ -115,9 +116,9 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                
             case 32:
                
-               maxsize = 2147483648;
+               maxsize = 2147483648LL;
                break;
-            }*/
+            }
             
       for (i =0; i < nSamples; i++) 
          {
@@ -135,29 +136,32 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                // convert data from little endian to big endian based on bytes in each channel sample
                if (bytes_in_each_channel == 4) 
                   {
-                  data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
+                  //data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
                   data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | 
                                     (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
                                     (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
                                     (data_buffer[xchannels*bytes_in_each_channel+3] << 24);
+                  //data_in_channel = data_in_channel / 2147483648.0; //normalize
                   }                                               
                else if (bytes_in_each_channel == 2) 
                   {
                   data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | (data_buffer[xchannels*bytes_in_each_channel+1] << 8);
+                  //data_in_channel = data_in_channel / 32768.0; //normalize
                   }
                else if (bytes_in_each_channel == 1) 
                   {
                   data_in_channel = data_buffer[0];
+                  //data_in_channel = data_in_channel / 128.0; //normalize
                   }               
                
                //return normalized complex data
                if(xchannels == 0) //Real channel is first
                   {
-                  realVal =  data_in_channel/32768.0;                  
+                  realVal =  data_in_channel/maxsize;                  
                   }
                else //Imaginary channel is second
                   {
-                  imagVal = data_in_channel/32768.0;                  
+                  imagVal = data_in_channel/maxsize;                  
                   waveData[i] = realVal + imagVal * I;
                   time += Ts;
                   waveDataTime[i] = time;
@@ -285,8 +289,7 @@ char* seconds_to_time(double raw_seconds)
    char decimalpart[15];
    memset(decimalpart, ' ', sizeof(decimalpart));
    strncpy(decimalpart, &hms[ipos+1], 3);
-   milliseconds = atoi(decimalpart);
-   
+   milliseconds = atoi(decimalpart);   
    
    sprintf(hms, "%d:%d:%d.%d", hours, minutes, seconds, milliseconds);
    return hms;

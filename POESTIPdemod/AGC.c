@@ -1,6 +1,19 @@
 #include <complex.h>
 #include <math.h>
 #include "AGC.h"
+
+double FindSignalAmplitude(double *dataStreamIn, unsigned long nSamples, double alpha)
+{
+static double average = 0;
+unsigned long i;
+
+for(i=0; i < nSamples; i++)
+   {    
+    average = average * (1.0 - alpha) + alpha*fabs(dataStreamIn[i]);    
+   }
+return average;
+}
+
 double StaticGain(double complex *complexData,unsigned int nSamples,double desiredLevel)
    {
    ////n=100000; //number of points to average
