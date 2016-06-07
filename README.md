@@ -16,11 +16,16 @@ Todo in decreasing order of importance:
 - [ ] Add in 8x interpolation for the M&M clock recovery routine for better performance. 
 - [X] Keep track of local recording time and process it in parallel with the data. We will need this through ALL steps of processing
 - [X] Add in ability to enable/disable/override things through command line options 
+- [X] Add in ability to gauge realtime signal quality
 - [ ] Add support for RAW data files
-- [ ] Add soundcard input capability 
 - [ ] Add the rest of the processing chain
 - [ ] Add a gui to make pretty things happen in realtime
-- [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording)
+- [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording?)
+
+# POES demodulator using port audio
+- Spits out data to minorframes_{datetime}.txt. 
+- Takes in RAW I/Q audio from sdr# (32khz, unity gain, RAW mode) or similar. 
+- Works! [NEW!]
 
 # ARGOS demodulator
 - Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
@@ -35,7 +40,7 @@ Todo in decreasing order of importance:
 # ARGOS demodulator using port audio
 - Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
 - Spits out packets to packets.txt. 
-- Takes in RAW I/Q audio from sdr# or similar. 
+- Takes in RAW I/Q audio from sdr# or similar (32khz, unity gain, RAW mode) . 
 - Mostly works! (NEW!)
 - TODO
 - [ ] Add support for real data input
