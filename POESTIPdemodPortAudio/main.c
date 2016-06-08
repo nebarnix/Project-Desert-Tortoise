@@ -39,7 +39,6 @@
 #define DSP_LPF_INTERP              (3) //interpolation order
 #define DSP_LPF_ORDER               (26*DSP_LPF_INTERP) //was (26)
 
-
 #define TRUE 1
 #define FALSE 0
 
@@ -112,6 +111,9 @@ int main(int argc, char **argv)
    
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];   
+   
+   const char *build_date = __DATE__;
+   printf("Project Desert Tortoise: Realtime NOAA POES Demodulator by Nebarnix.\nBuild date: %s\n",build_date); 
    
    while ((c = getopt (argc, argv, "n:c:")) != -1)
       {
