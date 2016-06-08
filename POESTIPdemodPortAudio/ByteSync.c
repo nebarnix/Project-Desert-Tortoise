@@ -21,7 +21,7 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
    static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;
    int framesFound=0;
    long idx;
-   unsigned char zero=0, one=1;
+   static unsigned char zero=0, one=1;
    static unsigned char byte=0;
    
    if(firstTime == 1)
@@ -34,12 +34,13 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
             printf("Error in malloc\n");
             exit(1);
             }
-      memset(historyBufferCirc, '.', sizeof(char) * syncWordLength);
+      memset(historyBufferCirc, 48, sizeof(char) * syncWordLength);
       }     
          
    //loop through samples
+   //fprintf(minorFrameFile,"."); //debugging code to mark chunk boundaries just in case errors are from chunk transitions
    for(idx = 0; idx < nSamples; idx++)
-      {
+      {      
       //Enter this loop if we found a syncword last time around            
       if(minorFrameShiftFlag == 1)
          {
@@ -89,7 +90,6 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {
-         //gotoxy(1,1);
          fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
@@ -121,9 +121,7 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {
-         //gotoxy(1,1);
-         //printf("Backwards?\n");
-         fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
+         fprintf(minorFrameFile,"%.5fi ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
          frameByteIdx = 2;
@@ -135,9 +133,20 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          one = 0;
          //bitIdx=;
          }     
+      /*
+      fprintf(minorFrameFile,"\n");
+      for (idx2 = 0; idx2 < syncWordLength; idx2++)
+         fprintf(minorFrameFile,"%c",historyBufferCirc[(oldest + idx2 + 1) % syncWordLength]);
+         
+      fprintf(minorFrameFile,"\n");
       
+      for (idx2 = 0; idx2 < syncWordLength; idx2++)
+         fprintf(minorFrameFile,"%c",syncWord[idx2]);
       
-        
+      fprintf(minorFrameFile,"\n");
+      fprintf(minorFrameFile,"\n");
+      */
+     
       //advance oldest bit pointer    
       oldest = (oldest + 1) % syncWordLength;
       }

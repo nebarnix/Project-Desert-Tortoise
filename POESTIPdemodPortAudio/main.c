@@ -16,7 +16,8 @@
 #include "ByteSync.h"
 #include "portaudio.h"
 
-#define SAMPLE_RATE         (48000)
+//#define SAMPLE_RATE         (48000)
+#define SAMPLE_RATE         (50000)
 #define PA_SAMPLE_TYPE      paFloat32
 #define NUM_CHANNELS        (2)
 #define DEFAULT_CHUNKSIZE  (1000)
@@ -27,15 +28,17 @@
 #define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
 #define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
 #define DSP_SQLCH_THRESH            (0.01) //was (0.25)
-#define DSP_MM_MAX_DEVIATION        (2.0) //was (3.0)
-#define DSP_MM_GAIN                 (0.2) //was (0.15)
-#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
-#define DSP_AGC_ATCK_RATE           (1e-2)//was 0.00025 //attack is when gain is INCREASING (weak signal)
-#define DSP_AGC_DCY_RATE            (2e-2) //           //decay is when the gain is REDUCING (strong signal)
-//#define DSP_AGC_GAIN               0.0015 //(0.0005) //was (0.0005)
-#define DSP_AGCC_GAIN               (0.00025) //(0.0015) //(0.0005) //was (0.001)
-#define DSP_LPF_FC                  (11000) //(was (11000)
-#define DSP_LPF_ORDER               (26) //was (26)
+#define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
+#define DSP_MM_GAIN                 (0.15)
+#define DSP_MCHSTR_RESYNC_LVL       (0.75) //was (0.5)
+#define DSP_AGC_ATCK_RATE           (1e-2)//      //attack is when gain is INCREASING (weak signal)
+#define DSP_AGC_DCY_RATE            (2e-2) //     //decay is when the gain is REDUCING (strong signal)
+//#define DSP_AGC_GAIN               (.00025)
+#define DSP_AGCC_GAIN               (0.00025)
+#define DSP_LPF_FC                  (11000)//(was (11000)
+#define DSP_LPF_INTERP              (3) //interpolation order
+#define DSP_LPF_ORDER               (26*DSP_LPF_INTERP) //was (26)
+
 
 #define TRUE 1
 #define FALSE 0
@@ -93,14 +96,14 @@ int main(int argc, char **argv)
    float *waveFrame; //data from input stream
    float realPart, imagPart;
    
-   double *dataStreamReal=NULL, *dataStreamSymbols=NULL;
+   double *waveDataTime=NULL,*dataStreamLPF=NULL,*dataStreamReal=NULL, *dataStreamSymbols=NULL, *dataStreamLPFTime=NULL;
    double Fs = SAMPLE_RATE;
    double LPF_Fc;   
    double averagePhase;
    double normFactor=0;
    double Time=0;
    
-   double *filterCoeffs=NULL, *waveDataTime=NULL;
+   double *filterCoeffs=NULL;
    double complex *waveData=NULL;
    char qualityString[20];
    
@@ -155,7 +158,9 @@ int main(int argc, char **argv)
    waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);      
    waveFrame = (float *) malloc(sizeof(float ) * chunkSize*2);
    waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
-   dataStreamReal = (double*) malloc(sizeof(double) * chunkSize);      
+   dataStreamReal = (double*) malloc(sizeof(double) * chunkSize);
+   dataStreamLPF = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);
+   dataStreamLPFTime = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);   
    dataStreamSymbols = (double*) malloc(sizeof(double) * chunkSize);   
    dataStreamBits = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
    
@@ -164,7 +169,8 @@ int main(int argc, char **argv)
       waveDataTime == NULL ||
       waveData  == NULL || 
       dataStreamReal == NULL || 
-      //lockSignalStream == NULL ||
+      dataStreamLPF == NULL ||
+      dataStreamLPFTime == NULL ||
       dataStreamSymbols  == NULL)
       {
       printf("Error in malloc\n");
@@ -278,18 +284,32 @@ while(!kbhit())
       averagePhase = CarrierTrackPLL(waveData, dataStreamReal, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
       //CheckSum1 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       
-      LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, LPF_Order);
+      //LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, LPF_Order);
+      LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, chunkSize, filterCoeffs, LPF_Order, DSP_LPF_INTERP);
       
       //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //SNR = 10.0 * log10(pow(signalBefore,2) / pow((signalBefore - signalAfter) ,2 )) - SNROffset;
       //NormalizingAGC(dataStreamReal, nSamples, 0.00025);
-      NormalizingAGC(dataStreamReal, chunkSize, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
+      NormalizingAGC(dataStreamLPF, chunkSize*DSP_LPF_INTERP, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
-      nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, 9, 0.15);      
       
-      //fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
+      //#ifdef RAW_OUTPUT_FILES
+      //   fwrite(dataStreamLPF, sizeof(double), chunkSize*DSP_LPF_INTERP,rawOutFilePtr);
+      //#endif
       
-      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
+      nSymbols = MMClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);      
+      
+      #ifdef RAW_OUTPUT_FILES
+         fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
+      #endif
+      
+            //ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, unsigned long nSymbols, unsigned char *bitStream, double resyncThreshold)
+      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
+      
+      #ifdef RAW_OUTPUT_FILES
+         fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
+      #endif
+      
       nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       totalBits += nBits;
@@ -311,7 +331,8 @@ while(!kbhit())
       else
          snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_RED,averagePhase,ANSI_COLOR_RESET);
       
-      printf("%0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames : %s",(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames, qualityString);
+      //SUPRESS OUTPUT HERE
+      printf("%0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames : %s   ",(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames, qualityString);
    
       
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
@@ -338,9 +359,10 @@ while(!kbhit())
  
     
    #ifdef RAW_OUTPUT_FILES
-   fclose(rawOutFilePtr);
-   fclose(rawOutFilePtr2);
+      fclose(rawOutFilePtr);
+      fclose(rawOutFilePtr2);
    #endif
+   
    fclose(minorFrameFile);
    
    
@@ -349,6 +371,7 @@ while(!kbhit())
    free(dataStreamSymbols);
    free(filterCoeffs);
    free(dataStreamReal);
+   free(dataStreamLPF);
    free(waveData);
    free(dataStreamBits);
    free(waveDataTime);
@@ -359,9 +382,10 @@ while(!kbhit())
    
    error:
       #ifdef RAW_OUTPUT_FILES
-      fclose(rawOutFilePtr);
-      fclose(rawOutFilePtr2);
+         fclose(rawOutFilePtr);
+         fclose(rawOutFilePtr2);
       #endif
+      
       fclose(minorFrameFile);
       
       // cleanup before quitting
@@ -370,6 +394,7 @@ while(!kbhit())
       free(dataStreamSymbols);
       free(filterCoeffs);
       free(dataStreamReal);
+      free(dataStreamLPF);
       free(waveData);
       free(dataStreamBits);
       free(waveDataTime);

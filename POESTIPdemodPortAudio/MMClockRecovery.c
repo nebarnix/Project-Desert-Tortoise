@@ -6,7 +6,7 @@ unsigned long MMClockRecovery(double *dataStreamIn, double *dataStreamInTime,  u
    {
    static char firstTime = 1;
    static double baud = 8320*2 - 1;
-   static double stepSize=3;
+   static double stepSize=3.0;
    double stepMax = Fs/(baud-stepRange);
    double stepMin = Fs/(baud+stepRange);
    double currentBit;
