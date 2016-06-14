@@ -11,7 +11,8 @@
 #include "AGC.h"
 #include "CarrierTrackPLL.h"
 #include "LowPassFilter.h"
-#include "MMClockRecovery.h"
+//#include "MMClockRecovery.h"
+#include "GardenerClockRecovery.h"
 #include "ManchesterDecode.h"
 #include "ByteSync.h"
 #include "portaudio.h"
@@ -299,7 +300,8 @@ while(!kbhit())
       //   fwrite(dataStreamLPF, sizeof(double), chunkSize*DSP_LPF_INTERP,rawOutFilePtr);
       //#endif
       
-      nSymbols = MMClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);      
+      //nSymbols = MMClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);
+      nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, 0.1, 2.5);
       
       #ifdef RAW_OUTPUT_FILES
          fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
