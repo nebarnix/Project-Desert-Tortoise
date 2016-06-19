@@ -8,14 +8,14 @@
 #include <time.h>
 #include <conio.h>
 //#include "wave.h"
-#include "AGC.h"
-#include "CarrierTrackPLL.h"
-#include "LowPassFilter.h"
+#include "../common/AGC.h"
+#include "../common/CarrierTrackPLL.h"
+#include "../common/LowPassFilter.h"
 //#include "MMClockRecovery.h"
-#include "GardenerClockRecovery.h"
-#include "ManchesterDecode.h"
-#include "ByteSync.h"
-#include "portaudio.h"
+#include "../common/GardenerClockRecovery.h"
+#include "../common/ManchesterDecode.h"
+#include "../common/ByteSync.h"
+#include "../common/portaudio.h"
 
 //#define SAMPLE_RATE         (48000)
 #define SAMPLE_RATE         (50000)
@@ -23,20 +23,23 @@
 #define NUM_CHANNELS        (2)
 #define DEFAULT_CHUNKSIZE  (1000)
 
-//these are obsolete for POES
 #define DSP_MAX_CARRIER_DEVIATION   (4500.0) //was (4500)
 #define DSP_PLL_LOCK_THRESH         (0.025) //(0.10)
 #define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
 #define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
+#define DSP_PLL_LOCK_ALPA           (0.00005)
 #define DSP_SQLCH_THRESH            (0.01) //was (0.25)
 #define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
 #define DSP_MM_GAIN                 (0.15)
+#define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
+#define DSP_GDNR_GAIN               (3.0) //was 2.5
+#define DSP_BAUD                    (8320*2+0.3)
 #define DSP_MCHSTR_RESYNC_LVL       (0.75) //was (0.5)
-#define DSP_AGC_ATCK_RATE           (1e-2)//      //attack is when gain is INCREASING (weak signal)
-#define DSP_AGC_DCY_RATE            (2e-2) //     //decay is when the gain is REDUCING (strong signal)
+#define DSP_AGC_ATCK_RATE           (10.0e-3)//      //attack is when gain is INCREASING (weak signal)
+#define DSP_AGC_DCY_RATE            (20.0e-3) //     //decay is when the gain is REDUCING (strong signal)
 //#define DSP_AGC_GAIN               (.00025)
 #define DSP_AGCC_GAIN               (0.00025)
-#define DSP_LPF_FC                  (11000)//(was (11000)
+#define DSP_LPF_FC                  (11000.0)//(was (11000)
 #define DSP_LPF_INTERP              (3) //interpolation order
 #define DSP_LPF_ORDER               (26*DSP_LPF_INTERP) //was (26)
 
@@ -108,13 +111,15 @@ int main(int argc, char **argv)
    char qualityString[20];
    
    unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
-   int LPF_Order, nFrames=0, totalFrames=0,c;
+   int nFrames=0, totalFrames=0,c;
    
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];   
    
+   
+   
    const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Realtime NOAA POES Demodulator by Nebarnix.\nBuild date: %s\n",build_date); 
+   printf("Project Desert Tortoise: Realtime NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",build_date); 
    
    while ((c = getopt (argc, argv, "n:c:")) != -1)
       {
@@ -154,10 +159,10 @@ int main(int argc, char **argv)
       }
       
    printf("Using %ld chunkSize\n",chunkSize);
-   LPF_Order = DSP_LPF_ORDER;
+   
    
    //Allocate the memory we will need
-   filterCoeffs = malloc(sizeof(double) * LPF_Order);         
+   filterCoeffs = malloc(sizeof(double) * DSP_LPF_ORDER);         
    waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);      
    waveFrame = (float *) malloc(sizeof(float ) * chunkSize*2);
    waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
@@ -247,7 +252,7 @@ int main(int argc, char **argv)
    #endif
    
    LPF_Fc = DSP_LPF_FC;   
-   MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
+   MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs*DSP_LPF_INTERP, DSP_LPF_INTERP);
 
    
 while(!kbhit())
@@ -284,11 +289,11 @@ while(!kbhit())
       NormalizingAGCC(waveData, chunkSize, normFactor, DSP_AGCC_GAIN);
       
       //CheckSum0 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
-      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
       //CheckSum1 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       
-      //LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, LPF_Order);
-      LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, chunkSize, filterCoeffs, LPF_Order, DSP_LPF_INTERP);
+      //LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, DSP_LPF_ORDER);
+      LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, chunkSize, filterCoeffs, DSP_LPF_ORDER, DSP_LPF_INTERP);
       
       //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //SNR = 10.0 * log10(pow(signalBefore,2) / pow((signalBefore - signalAfter) ,2 )) - SNROffset;
@@ -301,7 +306,7 @@ while(!kbhit())
       //#endif
       
       //nSymbols = MMClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);
-      nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, 0.1, 2.5);
+      nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, chunkSize*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
       
       #ifdef RAW_OUTPUT_FILES
          fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
@@ -314,7 +319,7 @@ while(!kbhit())
          fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
       #endif
       
-      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
+      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, 103, 3, minorFrameFile);      
       
       totalBits += nBits;
       totalFrames += nFrames;
