@@ -56,8 +56,7 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, doubl
        
        //data bits are in the imaginary part
        realDataOut[idx] = cimag(PLLOutSample);
-       if(lockSignalStreamOut != NULL)  
-          lockSignalStreamOut[idx] = d_locksig;
+       
        
        //calculate phase angle for quality estimation 
        PLLOutSamplePhase = atan2(cimag(PLLOutSample),creal(PLLOutSample));
@@ -96,6 +95,9 @@ double CarrierTrackPLL(double complex *complexDataIn, double *realDataOut, doubl
        
       //d_locksig = d_locksig * (1.0 - d_alpha) + d_alpha*(real(dataStreamIn(idx)) * t_real + imag(dataStreamIn(idx)) * t_imag);
       d_locksig = d_locksig * (1.0 - lockSigAlpha) + lockSigAlpha*(creal(complexDataIn[idx]) * t_real + cimag(complexDataIn[idx]) * t_imag);
+      
+      if(lockSignalStreamOut != NULL)  
+          lockSignalStreamOut[idx] = d_locksig;
       
       //d_locksig > d_lock_threshold (0.01)
       if(d_locksig > d_lock_threshold && firstLock == -1)

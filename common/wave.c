@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "wave.h"
 
 void printHeaderInfo(HEADER header)
@@ -89,6 +90,7 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    static double time=0, Ts=0;
    double realVal, imagVal;
    int16_t data_in_channel = 0;
+   //int data_in_channel = 0;
    
    if(Ts == 0)
       Ts = 1.0/(double)header.sample_rate;
