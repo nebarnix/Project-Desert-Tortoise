@@ -14,8 +14,8 @@
 //#include "MMClockRecovery.h"
 #include "../common/GardenerClockRecovery.h"
 #include "../common/ManchesterDecode.h"
-#include "../common/ByteSync.h"
 #include "../common/portaudio.h"
+#include "ByteSync.h"
 
 //#define SAMPLE_RATE         (48000)
 #define SAMPLE_RATE         (50000)
@@ -27,7 +27,7 @@
 #define DSP_PLL_LOCK_THRESH         (0.025) //(0.10)
 #define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
 #define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
-#define DSP_PLL_LOCK_ALPA           (0.00005)
+#define DSP_PLL_LOCK_ALPHA          (0.00005)
 #define DSP_SQLCH_THRESH            (0.01) //was (0.25)
 #define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
 #define DSP_MM_GAIN                 (0.15)
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
    time_t t = time(NULL);
    struct tm tm = *localtime(&t);
    //printf("now: %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-   snprintf(outFileName, 100,"minorframes_%4d%02d%02d_%02d%02d%02d.txt",tm.tm_year + 1900,tm.tm_mon + 1,tm.tm_mday,tm.tm_hour, tm.tm_min, tm.tm_sec);
+   snprintf(outFileName, 100,"minorFrames_%4d%02d%02d_%02d%02d%02d.txt",tm.tm_year + 1900,tm.tm_mon + 1,tm.tm_mday,tm.tm_hour, tm.tm_min, tm.tm_sec);
    minorFrameFile = fopen(outFileName, "w");
   
    if (minorFrameFile == NULL)
@@ -319,7 +319,7 @@ while(!kbhit())
          fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
       #endif
       
-      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, 103, 3, minorFrameFile);      
+      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       totalBits += nBits;
       totalFrames += nFrames;
