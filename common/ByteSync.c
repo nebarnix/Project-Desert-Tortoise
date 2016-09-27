@@ -13,17 +13,16 @@
    printf("%d bits and %d Frames\n",strlen(dataStreamBits), numFrames);
    }*/
 
-int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
-   {   
+int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, int frameLength, int startBit, FILE *minorFrameFile)
+   {
+   int idx2;
    static char firstTime = 1;
    static char *historyBufferCirc; //circular buffer
-   static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;   
-   static unsigned char zero=0, one=1;
-   static unsigned char byte=0;
-   
-   int idx2;
+   static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;
    int framesFound=0;
    unsigned long idx;
+   static unsigned char zero=0, one=1;
+   static unsigned char byte=0;
    
    if(firstTime == 1)
       {
@@ -39,8 +38,9 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
       }     
          
    //loop through samples
+   //fprintf(minorFrameFile,"."); //debugging code to mark chunk boundaries just in case errors are from chunk transitions
    for(idx = 0; idx < nSamples; idx++)
-      {
+      {      
       //Enter this loop if we found a syncword last time around            
       if(minorFrameShiftFlag == 1)
          {
@@ -63,7 +63,7 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
             byte = 0;
             bitIdx = 0;
             frameByteIdx++;
-            if(frameByteIdx > 103)
+            if(frameByteIdx > frameLength)
                {
                minorFrameShiftFlag = 0;
                fprintf(minorFrameFile,"\n");
@@ -89,15 +89,16 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          }
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
-         {         
+         {
          fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
-         fprintf(minorFrameFile,"%.2X ",0b11100010);         
+         fprintf(minorFrameFile,"%.2X ",0b11100010);
+         
          
          frameByteIdx = 2;
          minorFrameShiftFlag = 1;
          framesFound++;
-         bitIdx=3;
+         bitIdx=startBit;
          byte=0;
          zero = 0;
          one = 1;
@@ -125,82 +126,19 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
          
+         
          frameByteIdx = 2;
          minorFrameShiftFlag = 1;
-         framesFound++;
-         bitIdx=3;
+         framesFound++; //maybe this should be incremented at the END of the frame?
+         bitIdx=startBit; //3 for POES, 0 for ARGOS
          byte=0;
          zero = 1;
          one = 0;
+         //bitIdx=;
          }     
-        
+     
       //advance oldest bit pointer    
       oldest = (oldest + 1) % syncWordLength;
       }
    return framesFound;   
    }
-/*{
-                                      1110110111100010000
-   static unsigned char syncWord[] = "1110110111100010000";
-   //static unsigned char syncWordInverse[] = "0001001000011101111";
-
-   unsigned long idx;
-   static int syncIndicator = 0;
-   int numSyncWords=0;
-   
-   for(idx = 0; idx < nSamples; idx++)
-      {
-      if(bitStreamIn[idx] == syncWord[syncIndicator])
-         {
-         syncIndicator++;
-         if(syncIndicator == 18)
-            {
-            syncIndicator = 0;
-            numSyncWords++;
-            }
-         }
-      else 
-         syncIndicator = 0;      
-      }
-   //printf("\r %d Syncwords",  numSyncWords);    
-   return numSyncWords;
-   }*/
-   //syncWordAllIndex = sort(cat(2,syncWordIndex,syncWordInvIndex));
-   
-   /*
-   for frameIdx=1:numel(syncWordAllIndex)-1
-       //See if the frame is normal or inverted bits
-       if isempty(find(syncWordInvIndex == syncWordAllIndex(frameIdx),1))
-           for frameByteIdx=0:103 //minor frames are 103 bytes long
-               byte=0;
-               //Start of byte time
-               frameTime(frameIdx,frameByteIdx+1)=bitTime(syncWordAllIndex(frameIdx)+frameByteIdx*8);
-               //if this is a normal sync word, use normal bits
-               for bitIdx=0:7  //bytes are 8 bits long ;)                            
-                   if(dataStreamIn(syncWordAllIndex(frameIdx)+frameByteIdx*8+bitIdx)=='0')               
-                       byte = bitshift(byte,1); //This is a zero, just shift           
-                   else                    
-                       byte = bitshift(byte,1); //This is a one, set the bit then shift               
-                       byte = bitor(byte,1);              
-                   end                
-               end        
-           minorFrames(frameIdx,frameByteIdx+1)=byte;    
-           end
-       else //this minor frame is inverted
-           for frameByteIdx=0:103 //minor frames are 103 bytes long
-               byte=0;
-               //Start of byte time
-               frameTime(frameIdx,frameByteIdx+1)=bitTime(syncWordAllIndex(frameIdx)+frameByteIdx*8);            
-               for bitIdx=0:7  //bytes are 8 bits long ;)                            
-                   if(dataStreamIn(syncWordAllIndex(frameIdx)+frameByteIdx*8+bitIdx)=='0')               
-                       byte = bitshift(byte,1); //This is a zero, just shift
-                       byte = bitor(byte,1);              
-                   else                    
-                       byte = bitshift(byte,1); //This is a one, set the bit then shift                                  
-                   }                
-               }        
-           minorFrames(frameIdx,frameByteIdx+1)=byte;    
-           }
-       }
-   */
-   

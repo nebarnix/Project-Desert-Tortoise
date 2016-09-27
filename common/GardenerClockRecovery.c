@@ -2,10 +2,10 @@
 #include "GardenerClockRecovery.h"
 
 //M&M Clock Recovery Loop (interpolating version!)
-unsigned long GardenerClockRecovery(double *dataStreamIn, double *dataStreamInTime,  unsigned long numSamples, double *dataStreamOut, int Fs, double stepRange, double kp)
+unsigned long GardenerClockRecovery(double *dataStreamIn, double *dataStreamInTime,  unsigned long numSamples, double *dataStreamOut, int Fs, double baud, double stepRange, double kp)
    {
    static char firstTime = 1;
-   static double baud = 8320*2+03;
+   //static double baud = 8320*2+03;
    static double stepSize;
    //double stepMax = Fs/(baud-stepRange);
    //double stepMin = Fs/(baud+stepRange);
@@ -31,7 +31,7 @@ unsigned long GardenerClockRecovery(double *dataStreamIn, double *dataStreamInTi
       dataStreamOut[count] = currentBit;
       dataStreamInTime[count] = dataStreamInTime[(unsigned int)(rint(nextSample))];
       //Ind(count)  = nextSample;
-      count = count + 1;
+      
       
       //Calculates Error
       //Error = sign(prevBit)*currentBit - sign(currentBit)*prevBit;
@@ -54,6 +54,7 @@ unsigned long GardenerClockRecovery(double *dataStreamIn, double *dataStreamInTi
       halfSample = nextSample + stepSize/2.0;
       nextSample = nextSample + stepSize;    
       prevBit = currentBit;
+      count = count + 1;
       }
    nextSample =  nextSample - numSamples; //roll over to next chunk
    //return count-1; //does this make things better?

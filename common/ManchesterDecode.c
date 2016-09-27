@@ -24,7 +24,7 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
    
    
    //for idxi = 2:numel(dataStreamIn)-1    
-   for(idxi = 0; idxi < nSymbols; idxi++)
+   for(idxi = 0; idxi < nSymbols; idxi++, evenOddCounter++)
       {      
       prevPrevSample = prevSample;
       prevSample = currentSample;
@@ -69,7 +69,7 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
          }      
       
       //printf(" I:%ldO:%ld:%ld ",idxi,idxo,evenOddCounter);   
-      evenOddCounter++;
+      
       }
    //fprintf([num2str(idxerr) ' errors\n']);
    //printf("\n%ld/2=%ld == %ld\n",idxi,idxi/2,idxo);

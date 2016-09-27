@@ -18,11 +18,12 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
    int idx2;
    static char firstTime = 1;
    static char *historyBufferCirc; //circular buffer
-   static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;
-   int framesFound=0;
-   long idx;
+   static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;   
    static unsigned char zero=0, one=1;
    static unsigned char byte=0;
+   
+   int framesFound=0;
+   unsigned long idx;
    
    if(firstTime == 1)
       {
@@ -38,9 +39,8 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
       }     
          
    //loop through samples
-   //fprintf(minorFrameFile,"."); //debugging code to mark chunk boundaries just in case errors are from chunk transitions
    for(idx = 0; idx < nSamples; idx++)
-      {      
+      {
       //Enter this loop if we found a syncword last time around            
       if(minorFrameShiftFlag == 1)
          {
@@ -89,10 +89,12 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          }
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
-         {
+         {         
          fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
+         
+         
          frameByteIdx = 2;
          minorFrameShiftFlag = 1;
          framesFound++;
@@ -101,8 +103,7 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          zero = 0;
          one = 1;
          //bitIdx=;
-         }       
-      
+         }             
          
       //Look for Inverse Syncword
       syncIndicator = 1;
@@ -124,6 +125,8 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          fprintf(minorFrameFile,"%.5fi ",bitStreamInTime[idx]);
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
+
+         
          frameByteIdx = 2;
          minorFrameShiftFlag = 1;
          framesFound++;
@@ -133,20 +136,9 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          one = 0;
          //bitIdx=;
          }     
-      /*
-      fprintf(minorFrameFile,"\n");
-      for (idx2 = 0; idx2 < syncWordLength; idx2++)
-         fprintf(minorFrameFile,"%c",historyBufferCirc[(oldest + idx2 + 1) % syncWordLength]);
-         
-      fprintf(minorFrameFile,"\n");
       
-      for (idx2 = 0; idx2 < syncWordLength; idx2++)
-         fprintf(minorFrameFile,"%c",syncWord[idx2]);
       
-      fprintf(minorFrameFile,"\n");
-      fprintf(minorFrameFile,"\n");
-      */
-     
+        
       //advance oldest bit pointer    
       oldest = (oldest + 1) % syncWordLength;
       }

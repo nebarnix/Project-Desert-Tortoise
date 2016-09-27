@@ -3,18 +3,18 @@
 #include <stdio.h>
 #include <complex.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <time.h>
 #include <conio.h>
-//#include <koolplot.h>
-#include "wave.h"
-#include "AGC.h"
-#include "CarrierTrackPLL.h"
-#include "LowPassFilter.h"
-#include "MMClockRecovery.h"
-#include "ManchesterDecode.h"
+#include "../common/AGC.h"
+#include "../common/CarrierTrackPLL.h"
+#include "../common/LowPassFilter.h"
+//#include "../common/MMClockRecovery.h"
+#include "../common/GardenerClockRecovery.h"
+#include "../common/ManchesterDecode.h"
+#include "../common/portaudio.h"
 #include "ByteSync.h"
-#include "portaudio.h"
 
 
 #define SAMPLE_RATE         (48000)
@@ -24,15 +24,19 @@
 
 #define DSP_MAX_CARRIER_DEVIATION   (550.0) //was (550.0)
 #define DSP_PLL_LOCK_THRESH         (0.10) //was (1.00)
+#define DSP_PLL_LOCK_ALPHA           (0.004)
 #define DSP_PLL_ACQ_GAIN            (0.0015) //0.0015 //was (0.015) 
 #define DSP_PLL_TRCK_GAIN           (0.0015) // 0.0015 //was (0.015)
-#define DSP_SQLCH_THRESH            (0.01) //was (0.25)
-#define DSP_MM_MAX_DEVIATION        (2.0) //was (3.0)
-#define DSP_MM_GAIN                 (0.2) //was (0.15)
+#define DSP_SQLCH_THRESH            (0.3) //was (0.25)
+//#define DSP_MM_MAX_DEVIATION        (2.0) //was (3.0)
+//#define DSP_MM_GAIN                 (0.2) //was (0.15)
+#define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
+#define DSP_GDNR_GAIN               (3.0) //was 2.5
+#define DSP_BAUD                    (400*2)
 #define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
 #define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
 #define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
-//#define DSP_AGC_GAIN               0.0015 //(0.0005) //was (0.0005)
+
 #define DSP_AGCC_GAIN               (0.0015) //(0.0005) //was (0.001)
 #define DSP_LPF_FC                  (700) //(was (700)
 #define DSP_LPF_ORDER               (50) //was (50)
@@ -40,7 +44,7 @@
 #define TRUE 1
 #define FALSE 0
 
-//#define RAW_OUTPUT_FILES
+#define RAW_OUTPUT_FILES
 
 //int spaceCraftID, dayNum, 
 
@@ -74,12 +78,12 @@ int main(int argc, char **argv)
       
    //Files we will use
    #ifdef RAW_OUTPUT_FILES
-   FILE *rawOutFilePtr=NULL;
-   FILE *rawOutFilePtr2=NULL;
+      FILE *rawOutFilePtr=NULL;
+      FILE *rawOutFilePtr2=NULL;
    #endif
    FILE *minorFrameFile=NULL;
   
-   unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, idx, idx2, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
+   unsigned long chunkSize = DEFAULT_CHUNKSIZE, i=0, idx, idx2, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
    
    float *waveFrame; //data from input stream
    float realPart, imagPart;
@@ -87,7 +91,7 @@ int main(int argc, char **argv)
    double *dataStreamReal=NULL, *dataStreamSymbols=NULL, *lockSignalStream=NULL;
    double Fs = SAMPLE_RATE;
    double LPF_Fc;   
-   double PLLLock;
+   double averagePhase=0;
    double normFactor=0;
    double Time=0;
    
@@ -100,6 +104,9 @@ int main(int argc, char **argv)
    
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];
+   
+   const char *build_date = __DATE__;
+   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",build_date);
    
    while ((c = getopt (argc, argv, "n:c:")) != -1)
       {
@@ -136,9 +143,10 @@ int main(int argc, char **argv)
          default:
             abort ();
          }
-      }
+      }      
    printf("Using %ld chunkSize\n",chunkSize);
    LPF_Order = DSP_LPF_ORDER;
+   
    //Allocate the memory we will need
    filterCoeffs = malloc(sizeof(double) * LPF_Order);        
    waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);    
@@ -196,8 +204,7 @@ int main(int argc, char **argv)
    if( err != paNoError ) goto error;  
 
    // open files
-   printf("Opening Output files..\n");
-   
+   printf("Opening Output files..\n");   
    
    time_t t = time(NULL);
    struct tm tm = *localtime(&t);
@@ -228,7 +235,7 @@ int main(int argc, char **argv)
    #endif
    
    LPF_Fc = DSP_LPF_FC;   
-   MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs);
+   MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs, 1);
    
    while(!kbhit())
       { 
@@ -259,35 +266,43 @@ int main(int argc, char **argv)
          printf("Normalization Factor: %f\n",normFactor);
          }
          
-      i+=nSamples;
+      i+=chunkSize;
      
       NormalizingAGCC(waveData, chunkSize, normFactor, DSP_AGCC_GAIN);
       
-      PLLLock = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
-      (void)PLLLock;      
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
+      (void)averagePhase;      
       //fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
       LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, LPF_Order);      
-      NormalizingAGC(dataStreamReal, chunkSize, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);      
+      NormalizingAGC(dataStreamReal, chunkSize, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
+      
+      #ifdef RAW_OUTPUT_FILES
+         fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
+      #endif
+      
       Squelch(dataStreamReal, lockSignalStream, chunkSize, DSP_SQLCH_THRESH);
       //fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
       
-      nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);    
+      //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);
+      nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
       
-      #ifdef RAW_OUTPUT_FILES
-      fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
-      #endif
+      //#ifdef RAW_OUTPUT_FILES
+      //fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
+      //#endif
       
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
       
-      #ifdef RAW_OUTPUT_FILES
-      fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
-      #endif
-      nFrames = FindSyncWords(dataStreamBits, waveDataTime, nBits, "0001011110000", 13, minorFrameFile);      
+      //#ifdef RAW_OUTPUT_FILES
+      //   fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
+      //#endif
+      
+      //nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "0001011110000", minorFrameFile);
+      nFrames = FindSyncWords(dataStreamBits, waveDataTime, nBits, "0001011110000", 13, minorFrameFile);
       
       totalBits += nBits;
       totalFrames += nFrames;
-      totalSymbols += chunkSize;
-      totalSamples += nSamples;
+      totalSymbols += nSymbols;
+      totalSamples += chunkSize;
 
       }
    getch(); //clear the buffer

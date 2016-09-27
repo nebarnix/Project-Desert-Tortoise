@@ -1,13 +1,15 @@
 CC=gcc
-CFLAGS=-Wall  -O1 -pipe -fomit-frame-pointer 
+CFLAGS=-Wall -Wno-unused-parameter -O3 -pipe -fomit-frame-pointer -march=i686
 LIBS = -lm
 
-src = $(wildcard *.c)
-obj = $(src:.c=.o)
+vpath %.c ../common
 
-demodPOESTIP: $(obj)
-	 $(CC) -o $@ $^ $(LIBS)
+SRC = main.c AGC.c ByteSync.c CarrierTrackingPLL.c GardenerClockRecovery.c LowPassFilter.c ManchesterDecode.c MMClockRecovery.c wave.c 
+OBJ = $(SRC:.c=.o)
+
+demodPOES: $(OBJ)
+	$(CC) -o $@ $^ $(LIBS)
 
 .PHONY: clean
 clean:
-	del -f $(obj) demodPOESTIP
+	del -f $(OBJ) demodPOES

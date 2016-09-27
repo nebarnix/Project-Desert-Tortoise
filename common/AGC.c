@@ -3,6 +3,18 @@
 #include <stdio.h>
 #include "AGC.h"
 
+double FindSignalAmplitude(double *dataStreamIn, unsigned long nSamples, double alpha)
+{
+static double average = 0;
+unsigned long i;
+
+for(i=0; i < nSamples; i++)
+   {    
+    average = average * (1.0 - alpha) + alpha*fabs(dataStreamIn[i]);    
+   }
+return average;
+}
+
 void Squelch(double *dataStream, double *squelchStreamIn, unsigned long nSamples, double squelchThreshold)
 {
 unsigned long i;
@@ -123,12 +135,14 @@ void NormalizingAGCC(double complex *dataStreamIn, unsigned long nSamples, doubl
    
    unsigned long idx;
    
-   static double gain = 0; //Initial Gain Value
-   double desired = 5; //because a sin wave of amplitude 1 has this average absolute value
+   static double gain = 0.0; //Initial Gain Value
+   double desired = 5; 
    double error;
+   static char firsttime=1;
    
-   if(gain == 0)
+   if(firsttime == 1)
       {
+      firsttime = 0;
       gain = initial;
       }
    
