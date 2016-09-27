@@ -3,9 +3,10 @@
 #include <stdio.h>
 #include <complex.h>
 #include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <math.h>
-//#include <koolplot.h>
+#include <time.h>
 #include "../common/wave.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
@@ -13,7 +14,7 @@
 //#include "../common/MMClockRecovery.h"
 #include "../common/GardenerClockRecovery.h"
 #include "../common/ManchesterDecode.h"
-#include "../common/ByteSync.h"
+#include "ByteSync.h"
 
 #define TRUE 1
 #define FALSE 0
@@ -28,9 +29,9 @@
 
 //Port audio
 #define DSP_PLL_LOCK_THRESH         (0.025) //(0.10)
-#define DSP_PLL_LOCK_ALPA           (0.00005)
 #define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
 #define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
+#define DSP_PLL_LOCK_ALPHA          (0.00005) //
 #define DSP_SQLCH_THRESH            (0.01) //was (0.25)
 #define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
 #define DSP_MM_GAIN                 (0.15)
@@ -96,6 +97,7 @@ int main(int argc, char **argv)
    
    unsigned char *dataStreamBits=NULL;
    char *filename=NULL;
+   char outFileName[100];
    char outputRawFiles=0;   
    
    const char *build_date = __DATE__;
@@ -170,21 +172,25 @@ int main(int argc, char **argv)
    char cwd[1024];
    if (getcwd(cwd, sizeof(cwd)) != NULL) 
       {      
-      strcpy(filename, argv[optind]);
-      
+            
       // get filename from command line
       if (argc < 2)
          {
          printf("No wave file specified\n");
          return 1;
          }
-      printf("%s\n", filename);
+      strcpy(filename, argv[optind]);
+      printf("%d %s\n",argc, filename);
       }
 
    // open files
    printf("Opening IO files..\n");
    waveFilePtr = fopen(filename, "rb");
-   minorFrameFile = fopen("minorFrame.txt", "w");
+   time_t t = time(NULL);
+   struct tm tm = *localtime(&t);
+   //printf("now: %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+   snprintf(outFileName, 100,"minorFrames_%4d%02d%02d_%02d%02d%02d.txt",tm.tm_year + 1900,tm.tm_mon + 1,tm.tm_mday,tm.tm_hour, tm.tm_min, tm.tm_sec);
+   minorFrameFile = fopen(outFileName, "w");
   
    if (minorFrameFile == NULL ||
       waveFilePtr == NULL)
@@ -272,7 +278,8 @@ int main(int argc, char **argv)
          fwrite(dataStreamLPF, sizeof(double), nSymbols,rawOutFilePtr);
       
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
-      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, 103, 3, minorFrameFile);      
+      //int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile);
+      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       totalBits += nBits;
       totalFrames += nFrames;
