@@ -13,11 +13,12 @@ Todo in decreasing order of importance:
 - [X] Add dynamic lowpass filter coefficient generator to compensate for varying input sample rates
 - [X] Add sync word detection for metrics
 - [X] Add sync word byte conversion to form minor frame data. 
-- [ ] Add in 8x interpolation for the M&M clock recovery routine for better performance. 
+- [\] Add in 8x interpolation for the clock recovery routine for better performance. Need to optimize interpolator
 - [X] Keep track of local recording time and process it in parallel with the data. We will need this through ALL steps of processing
 - [X] Add in ability to enable/disable/override things through command line options 
 - [X] Add in ability to gauge realtime signal quality
-- [ ] Add support for RAW data files
+- [\] Add support for reading and writing RAW data files. Need to write read support
+- [ ] Add bytesync back into common libs with separate functions for POES and ARGOS
 - [ ] Add the rest of the processing chain
 - [ ] Add a gui to make pretty things happen in realtime
 - [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording?)
@@ -43,5 +44,6 @@ Todo in decreasing order of importance:
 - Takes in RAW I/Q audio from sdr# or similar (32khz, unity gain, RAW mode) . 
 - Mostly works! (NEW!)
 - TODO
+- [ ] Add UTC timestamps for ARGOS realtime packets
 - [ ] Add support for real data input
 - [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
