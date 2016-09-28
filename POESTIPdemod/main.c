@@ -5,8 +5,9 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-#include <math.h>
+#include <tgmath.h>
 #include <time.h>
+#include <conio.h>
 #include "../common/wave.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
@@ -22,19 +23,15 @@
 
 #define DSP_MAX_CARRIER_DEVIATION   (4500.0) //was (4500)
 
-//Wave file 
-//#define DSP_PLL_LOCK_THRESH         (0.1) //(0.10)
-//#define DSP_PLL_ACQ_GAIN            (0.01) //(0.005)  
-//#define DSP_PLL_TRCK_GAIN           (0.001) //(0.0015)
-
-//Port audio
 #define DSP_PLL_LOCK_THRESH         (0.025) //(0.10)
 #define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
 #define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
 #define DSP_PLL_LOCK_ALPHA          (0.00005) //
 #define DSP_SQLCH_THRESH            (0.01) //was (0.25)
-#define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
-#define DSP_MM_GAIN                 (0.15)
+
+//#define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
+//#define DSP_MM_GAIN                 (0.15)
+
 #define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (8320*2+0.3)
@@ -46,7 +43,6 @@
 #define DSP_LPF_FC                  (11000.0)//(was (11000)
 #define DSP_LPF_INTERP              (3) //interpolation order
 #define DSP_LPF_ORDER               (26*DSP_LPF_INTERP) //was (26)
-//#define DSP_LPF_ORDER               (26) //was (26)
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
@@ -71,17 +67,28 @@ unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    return sum;
    }
 
-int main(int argc, char **argv) 
+const char *get_filename_ext(const char *filename) 
    {
-   FILE *waveFilePtr;
-   FILE *rawOutFilePtr;
-   FILE *minorFrameFile;
+   const char *dot = strrchr(filename, '.');
+   if(!dot || dot == filename)
+      return "";
+   return dot + 1;
+   }   
    
+int main(int argc, char **argv) 
+      {
+   //Wave variable
    HEADER header;
    
-   unsigned long idx,chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
+   //Files we will use
+   FILE *inFilePtr=NULL;
+   FILE *minorFrameFile=NULL;
+   FILE *rawOutFilePtr=NULL;
    
-   double tempVal;
+   unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0,benchTime;
+   //unsigned long idx;
+   
+   //double tempVal;
    double Fs;
    double averagePhase, percentComplete=0;
    double normFactor=0;
@@ -92,16 +99,15 @@ int main(int argc, char **argv)
    double complex *waveData=NULL;
    char qualityString[20];
    
-   unsigned int CheckSum0=0, CheckSum1=0, CheckSum2=0, CheckSum3=0;
+   //unsigned int CheckSum0=0, CheckSum1=0, CheckSum2=0, CheckSum3=0;
    int nFrames=0, totalFrames=0,c;
    
    unsigned char *dataStreamBits=NULL;
-   char *filename=NULL;
+   char *inFileName=NULL;
    char outFileName[100];
    char outputRawFiles=0;   
    
-   const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Wave file NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",build_date);
+   printf("Project Desert Tortoise: Wave file NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    
    while ((c = getopt (argc, argv, "rn:c:")) != -1)
       {
@@ -143,20 +149,23 @@ int main(int argc, char **argv)
             abort ();
          }
       }
+   //printf("Using %ld chunkSize\n",chunkSize);
    
-   filterCoeffs = malloc(sizeof(double) * DSP_LPF_ORDER);
-   filename = (char*) malloc(sizeof(char) * 1024);      
-   waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);      
-   waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
-   dataStreamReal = (double*) malloc(sizeof(double) * chunkSize);
-   dataStreamLPF = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);
+   //Allocate the memory we will need
+   filterCoeffs      = malloc(sizeof(double) * DSP_LPF_ORDER);
+   inFileName        = (char*) malloc(sizeof(char) * 1024);      
+   waveData          = (double complex*) malloc(sizeof(double complex) * chunkSize);      
+   waveDataTime      = (double *) malloc(sizeof(double ) * chunkSize);
+   dataStreamReal    = (double*) malloc(sizeof(double) * chunkSize);
+   dataStreamLPF     = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);
    dataStreamLPFTime = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);   
    dataStreamSymbols = (double*) malloc(sizeof(double) * chunkSize);   
-   dataStreamBits = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
+   dataStreamBits    = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
    
+   //Make sure it was allocated OK
    if (dataStreamBits == NULL || 
       filterCoeffs == NULL || 
-      filename == NULL || 
+      inFileName == NULL || 
       waveDataTime == NULL ||
       waveData  == NULL || 
       dataStreamReal == NULL || 
@@ -179,13 +188,14 @@ int main(int argc, char **argv)
          printf("No wave file specified\n");
          return 1;
          }
-      strcpy(filename, argv[optind]);
-      printf("%d %s\n",argc, filename);
+      strcpy(inFileName, argv[optind]);
+      printf("%s\n", inFileName);
       }
 
    // open files
    printf("Opening IO files..\n");
-   waveFilePtr = fopen(filename, "rb");
+   inFilePtr = fopen(inFileName, "rb");
+   
    time_t t = time(NULL);
    struct tm tm = *localtime(&t);
    //printf("now: %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -193,7 +203,7 @@ int main(int argc, char **argv)
    minorFrameFile = fopen(outFileName, "w");
   
    if (minorFrameFile == NULL ||
-      waveFilePtr == NULL)
+      inFilePtr == NULL)
       {
       printf("Error opening output files\n");
       exit(1);
@@ -209,7 +219,15 @@ int main(int argc, char **argv)
          }
       }
 
-   header = ReadWavHeader(waveFilePtr);
+   if(strcasecmp(get_filename_ext(inFileName),"wav") == 0)
+      header = ReadWavHeader(inFilePtr);
+   else
+      {
+      printf("RAW files not yet supported :(\n");
+      exit(1);
+      }
+      
+   
    Fs = (double)header.sample_rate;
    long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
    
@@ -217,28 +235,25 @@ int main(int argc, char **argv)
     
    MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs*DSP_LPF_INTERP, DSP_LPF_INTERP);
    
-   while(!feof(waveFilePtr))
+   //benchTime = clock();
+   //printf("\n%ld ticks per second\n",CLOCKS_PER_SEC);
+   while(!feof(inFilePtr))
       { 
-      nSamples = GetComplexWaveChunk(waveFilePtr, header, waveData, waveDataTime, chunkSize);
-      
-      
+      //printf("1: %ld\t",clock()-benchTime); benchTime = clock();
+      nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);      
+      //printf("2: %ld\t",clock()-benchTime); benchTime = clock();
       if(i == 0 && normFactor == 0)
          {
          normFactor = StaticGain(waveData, nSamples, 1.0);
          //normFactor = 0.000041;
          printf("Normalization Factor: %f\n",normFactor);
          }
-         
+      //printf("3: %ld\t",clock()-benchTime); benchTime = clock();   
       i+=nSamples;
       
-      //normalize
-      //for(idx=0; idx < nSamples; idx++)
-      //   {
-      //    waveData[idx] *= normFactor;         
-      //   }
-      CheckSum0 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
+      //CheckSum0 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
       NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN);
-      
+      //printf("4: %ld\t",clock()-benchTime); benchTime = clock();
       /*
       if(outputRawFiles == 1)
          {
@@ -252,19 +267,20 @@ int main(int argc, char **argv)
             }
          }*/
       
-      CheckSum1 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
+      //CheckSum1 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
       //averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
       averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
-      CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
-      
+      //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
+      //printf("5: %ld\t",clock()-benchTime); benchTime = clock();
       
       //LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);
       LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, nSamples, filterCoeffs, DSP_LPF_ORDER, DSP_LPF_INTERP);
+      //printf("6: %ld\t",clock()-benchTime); benchTime = clock();
       
-      /*if(outputRawFiles == 1)         
-         fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);*/
+      //if(outputRawFiles == 1)         
+      //   fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);
       
-      CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
+      //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       
       //NormalizingAGC(dataStreamReal, nSamples, 0.00025);
       NormalizingAGC(dataStreamLPF, nSamples*DSP_LPF_INTERP, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
@@ -272,20 +288,23 @@ int main(int argc, char **argv)
          fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);*/
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 9, 0.15);      
-      
+      //printf("7: %ld\t\n\n",clock()-benchTime); benchTime = clock();
       nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, nSamples*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);            
+      
       if(outputRawFiles == 1)         
          fwrite(dataStreamLPF, sizeof(double), nSymbols,rawOutFilePtr);
       
+      //printf("8: %ld\t",clock()-benchTime); benchTime = clock();
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
       //int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile);
+      //printf("9: %ld\t",clock()-benchTime); benchTime = clock();
       nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
-      
+      //printf("10: %ld\t\n\n",clock()-benchTime); benchTime = clock();
       totalBits += nBits;
       totalFrames += nFrames;
       totalSymbols += nSymbols;
       totalSamples += nSamples;
-      if((((double)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(waveFilePtr))
+      if((((double)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(inFilePtr))
          {
          percentComplete = ((double)( i) / num_samples)*100.0;
          printf("\r");
@@ -314,18 +333,17 @@ int main(int argc, char **argv)
          }*/
       }
    
-   printf("\nChecksum0=%X Checksum1=%X Checksum2=%X Checksum3=%X", CheckSum0, CheckSum1,CheckSum2,CheckSum3);
+   //printf("\nChecksum0=%X Checksum1=%X Checksum2=%X Checksum3=%X", CheckSum0, CheckSum1,CheckSum2,CheckSum3);
    printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    if(outputRawFiles == 1)   
       fclose(rawOutFilePtr);
    
-   if (fclose(waveFilePtr)) { printf("error closing file."); exit(-1); }
+   if (fclose(inFilePtr)) { printf("error closing file."); exit(-1); }
    if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
    
    // cleanup before quitting
-   free(filename);
-   free(dataStreamReal);
+   free(inFileName);
    free(dataStreamSymbols);
    free(filterCoeffs);
    free(dataStreamReal);
