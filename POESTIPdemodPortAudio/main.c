@@ -118,8 +118,10 @@ int main(int argc, char **argv)
    
    
    
-   const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Realtime NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",build_date); 
+   //const char *build_date = __DATE__;
+   printf("Project Desert Tortoise: Realtime NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
+   printf("Please tune SDR input to NOAA-15/18 137.350Mhz or NOAA-19 137.770Mhz\n");
+   printf("Please set bandwidth to >=32khz, filter order lowest possible, RAW output mode\n");
    
    while ((c = getopt (argc, argv, "n:c:")) != -1)
       {
@@ -376,7 +378,6 @@ while(!kbhit())
    
    
    // cleanup before quitting
-   free(dataStreamReal);
    free(dataStreamSymbols);
    free(filterCoeffs);
    free(dataStreamReal);
@@ -402,7 +403,6 @@ while(!kbhit())
       free(dataStreamReal);
       free(dataStreamSymbols);
       free(filterCoeffs);
-      free(dataStreamReal);
       free(dataStreamLPF);
       free(waveData);
       free(dataStreamBits);
