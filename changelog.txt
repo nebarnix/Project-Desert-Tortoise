@@ -1,0 +1,76 @@
+TODO
+[ ] Add in total execution time summary for recorded files (for benchmarking porpoises)
+
+COMMONLIBS
+Sept 27, 2016
+-Lowwpassfilter.c
+--Added skipping of zero stuffed places to remove the interpolation penalty
+
+Sept 25, 2016
+-Reversed idea to use bytesync.c as a common library due to the fact that packetized and nonpacketized streams have a different needs. Perhaps these could be POESbytesyc and ARGOSbytesync to avoid updating the two versions each time?
+-included stdint.h to wave.c to cover int16_t data_in_channel because mingw suddenly stopped compiling it	
+-IDEA! Unlock (or even reset) the PLL if the quality estimator is very low for a long time-- we may have a false lock on a nearby signal
+
+POES POST
+Sept 27, 2016
+
+Sept 25, 2016
+-Restored archived bytesync.c
+--Reverted two passed variables that were needed to decode universal streams (length and offset) -- now specific again
+--Syncrhonized updated 'long idx' to 'unsigned long idx'
+--Synchronized 'memset(historyBufferCirc, '.', sizeof(char) * syncWordLength);' to 'memset(historyBufferCirc, 48, sizeof(char) * syncWordLength);'
+--Syncrhonized addition of 'i' to inverted frames
+-Fixed typo: WAS DSP_PLL_LOCK_ALPA  SB DSP_PLL_LOCK_ALPHA
+--Setting to 0.00005 for POES (as it is for POES REALTIME)
+-Added output file date and time naming
+-fixed bug where check for filename was done after trying to use it -- with expected results
+
+POES REALTIME
+Sept 25, 2016
+-Restored bytesync.c from POES POST using updates documented
+--Reverted function call in main to old format (removed two passed variables)
+-Fixed typo: WAS DSP_PLL_LOCK_ALPA  SB DSP_PLL_LOCK_ALPHA
+
+ARGOS POST
+Sept 27, 2016
+-Forgot to free buffer for logsignalstream. Fixed.
+-Implemented raw data output upon command line flag
+Sept 25, 2016
+-Fixed typo: WAS DSP_PLL_LOCK_ALPA  SB DSP_PLL_LOCK_ALPHA
+-Restored archived bytesync.c
+--Reverted two passed variables that were needed to decode universal streams (length and offset) -- now specific again
+--Syncrhonized updated 'long idx' to 'unsigned long idx'
+--Synchronized char one char zero and char byte to be static
+--Synchronized 'memset(historyBufferCirc, '.', sizeof(char) * syncWordLength);' to 'memset(historyBufferCirc, 48, sizeof(char) * syncWordLength);'
+--Changed minorFrameShiftFlag to packetShiftFlag
+--Changed minorFrameFile to packetFile
+--Changes minorFramesFound to packetsFound
+--commented out POES specific syncword write to log file, but probably should put ARGOS specific?
+-Added magic numbers to defines list
+-Uncommented the PLL locksig squelch function
+-Updated DSP_AGCC_GAIN 0.0015 from 0.001 to sync with latest ARGOS REALTIME which was newest branch
+-updated DSP_PLL_ACQ_GAIN and DSP_PLL_TRCK_GAIN from 0.0015 to 0.015 based on testing of wave data
+-added program greeting and build date
+-various synchronizations of form to ARGOS REALTIME build
+-Updated status printout text to say packets instead of frames
+-Added output file date and time naming
+-fixed bug where check for filename was done after trying to use it -- with expected results
+
+ARGOS REALTIME
+Sept 27, 2016
+-Forgot to free buffer for logsignalstream. Fixed.
+Sept 25, 2016
+-Restored archived bytesync.c
+--Reverted two passed variables that were needed to decode universal streams (length and offset) -- now specific again
+-Quick test decoded 5/5 packets in 12-21-56_401650kHz.wav when played back using audacity (0.5 output volume)
+-Observation: When I increase the chunksize it shifts the time axis -- this shouldn't happen?
+
+C++
+POES REALTIME
+Sept 27, 2016
+-Lowpass.cpp
+--Added skipping of zero stuffed places to remove the interpolation penalty
+Sept 25, 2016
+-Bytesync.cpp
+--ByteSyncOnSyncword::Work()
+---Chnaged idx to unsigned
