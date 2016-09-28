@@ -5,6 +5,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <math.h>
 #include <time.h>
 #include <conio.h>
 #include "../common/wave.h"
@@ -16,9 +17,12 @@
 #include "../common/ManchesterDecode.h"
 #include "ByteSync.h"
 
+#define TRUE 1
+#define FALSE 0
 #define DEFAULT_CHUNKSIZE  (1000)
 
 #define DSP_MAX_CARRIER_DEVIATION   (550.0) //was (550.0)
+
 #define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
 #define DSP_PLL_LOCK_ALPHA          (0.004)
 #define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015) 
@@ -35,13 +39,6 @@
 #define DSP_AGCC_GAIN               (0.001) //(0.0005) //was (0.001) //AR0.0015
 #define DSP_LPF_FC                  (700) //(was (700)
 #define DSP_LPF_ORDER               (50) //was (50)
-
-#define TRUE 1
-#define FALSE 0
-
-//#define RAW_OUTPUT_FILES
-
-//int spaceCraftID, dayNum, 
 
 unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    {
@@ -72,10 +69,7 @@ int main(int argc, char **argv)
    //Files we will use
    FILE *inFilePtr=NULL;
    FILE *minorFrameFile=NULL;
-   
-   #ifdef RAW_OUTPUT_FILES
-      FILE *rawOutFilePtr=NULL;      
-   #endif
+   FILE *rawOutFilePtr=NULL;
    
    unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
    
@@ -90,19 +84,24 @@ int main(int argc, char **argv)
    
    
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
-   int LPF_Order, nFrames=0, totalFrames=0,c;
+   int nFrames=0, totalFrames=0,c;
    
    unsigned char *dataStreamBits=NULL;
    char *inFileName=NULL;
    char outFileName[100];
+   char outputRawFiles=0;
    
-   const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",build_date);
+   //const char *build_date = __DATE__;
+   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    
-   while ((c = getopt (argc, argv, "n:c:")) != -1)
+   while ((c = getopt (argc, argv, "rn:c:")) != -1)
       {
       switch (c)
          {
+         case 'r':
+            outputRawFiles = 1;
+            printf("Outputting Debugging Raw Files\n");
+            break;
          case 'n':
             if(optarg == NULL)
                {
@@ -119,7 +118,7 @@ int main(int argc, char **argv)
                return 1;
                }
             chunkSize = atoi(optarg);
-            
+            printf("Using %ld chunkSize\n",chunkSize);
             break;
          case '?':
             if (optopt == 'c' || optopt == 'n')
@@ -135,11 +134,10 @@ int main(int argc, char **argv)
             abort ();
          }
       }
-   printf("Using %ld chunkSize\n",chunkSize);
-   LPF_Order = DSP_LPF_ORDER;
-   
+   //printf("Using %ld chunkSize\n",chunkSize);
+      
    //Allocate the memory we will need
-   filterCoeffs = malloc(sizeof(double) * LPF_Order);   
+   filterCoeffs = malloc(sizeof(double) * DSP_LPF_ORDER);   
    inFileName = (char*) malloc(sizeof(char) * 1024);      
    waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);      
    waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
@@ -193,14 +191,15 @@ int main(int argc, char **argv)
       exit(1);
       }
       
-   #ifdef RAW_OUTPUT_FILES
-   rawOutFilePtr = fopen("output.raw", "wb");
-   if (rawOutFilePtr == NULL)
+   if(outputRawFiles == 1)
       {
-      printf("Error opening output file\n");
-      exit(1);
+      rawOutFilePtr = fopen("output.raw", "wb");
+      if (rawOutFilePtr == NULL)
+         {
+         printf("Error opening output file\n");
+         exit(1);
+         }
       }
-   #endif
    
    if(strcasecmp(get_filename_ext(inFileName),"wav") == 0)
       header = ReadWavHeader(inFilePtr);
@@ -217,15 +216,15 @@ int main(int argc, char **argv)
    
    printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
 
-   LPF_Fc = DSP_LPF_FC;   
-   MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs, 1);
+   MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs, 1);
+   
    while(!feof(inFilePtr))
       { 
       nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
       
       if(i == 0 && normFactor == 0)
          {
-         normFactor = StaticGain(waveData, nSamples, 1);
+         normFactor = StaticGain(waveData, nSamples, 1.0);
          //normFactor = 1;
          printf("Normalization Factor: %f\n",normFactor);
          }
@@ -236,12 +235,11 @@ int main(int argc, char **argv)
             
       averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
       (void)averagePhase;      
-      LowPassFilter(dataStreamReal, nSamples, filterCoeffs, LPF_Order);      
+      LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);      
       NormalizingAGC(dataStreamReal, nSamples, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);      
       
-      #ifdef RAW_OUTPUT_FILES
+      if(outputRawFiles == 1)
          fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
-      #endif
       
       Squelch(dataStreamReal, lockSignalStream, nSamples, DSP_SQLCH_THRESH);
       //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 3, 0.15);
@@ -277,22 +275,23 @@ int main(int argc, char **argv)
    
    //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
    printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
-   #ifdef RAW_OUTPUT_FILES
+   
+   if(outputRawFiles == 1)   
       fclose(rawOutFilePtr);
-   #endif
-   fclose(inFilePtr);
-   fclose(minorFrameFile);
+   
+   if (fclose(inFilePtr)) { printf("error closing file."); exit(-1); }
+   if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
    
    
    // cleanup before quitting
    free(inFileName);
-   free(dataStreamReal);
    free(dataStreamSymbols);
    free(filterCoeffs);
    free(dataStreamReal);
    free(waveData);
    free(dataStreamBits);
    free(waveDataTime);
+   free(lockSignalStream);
    
    //quit
    //fflush(stdout);
