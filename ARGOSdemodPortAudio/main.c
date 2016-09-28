@@ -105,8 +105,8 @@ int main(int argc, char **argv)
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];
    
-   const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",build_date);
+   //const char *build_date = __DATE__;
+   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    
    while ((c = getopt (argc, argv, "n:c:")) != -1)
       {
@@ -326,13 +326,13 @@ int main(int argc, char **argv)
    
    
    // cleanup before quitting
-   free(dataStreamReal);
    free(dataStreamSymbols);
    free(filterCoeffs);
    free(dataStreamReal);
    free(waveData);
    free(dataStreamBits);
    free(waveDataTime);
+   free(lockSignalStream);
    
    //quit
    //fflush(stdout);
@@ -350,10 +350,10 @@ int main(int argc, char **argv)
       free(dataStreamReal);
       free(dataStreamSymbols);
       free(filterCoeffs);
-      free(dataStreamReal);
       free(waveData);
       free(dataStreamBits);
       free(waveDataTime);
+      free(lockSignalStream);
       Pa_Terminate();
       fprintf( stderr, "An error occured while using the portaudio stream\n" );
       fprintf( stderr, "Error number: %d\n", err );
