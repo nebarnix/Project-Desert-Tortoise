@@ -1,5 +1,4 @@
 //Main loop taken from http://www.barrgroup.com/Embedded-Systems/How-To/Digital-Filters-FIR-IIR
-//coeffs computed in matlab. Only valid for 50ksps data!
 
 #include <stdio.h>
 #include <stdlib.h>
