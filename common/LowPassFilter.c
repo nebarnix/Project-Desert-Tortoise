@@ -4,9 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+#include <tgmath.h>
 #include "LowPassFilter.h"
 
+/*
+ * Low Pass Filter with zero stuffing interpolator 
+ */
+ 
 void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double *dataStreamOut, double *dataStreamOutTime, unsigned long nSamples, double *filterCoeffs, int N, int interpFactor)
    {
    /*
@@ -22,7 +26,7 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
    double y;
    unsigned long idxO, idxI=0;
    static unsigned char interpCounter=0;
-   
+   unsigned long nSamplesInterp = nSamples*interpFactor;
    
    if(firsttime == 1)
       {   
@@ -35,30 +39,31 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
          }
       memset(x,0,sizeof(double)*N); //zero out the circular buffer
       }
-   // printf("LPF\n");
    
-   
-   
-   for(idxO = 0; idxO < (nSamples*interpFactor); idxO++,interpCounter++)
+   //for(idxO = 0; idxO < (nSamples*interpFactor); idxO++,interpCounter++)
+   for(idxO = 0; idxO < nSamplesInterp; idxO++,interpCounter++)
       { 
-      if((interpCounter % interpFactor) == 0)
+      if((interpCounter % interpFactor) == 0) //every for loop ALAWYS starts here, with a real data input
          {
-         x[oldest] = dataStreamIn[idxI]; //stuff the current sample into the buffer and push the oldest one out
-         idxI++;
+         x[oldest] = dataStreamIn[idxI++]; //stuff the current sample into the buffer and push the oldest one out
          interpCounter = 0;
          }
       else
-         x[oldest] = 0;
+         x[oldest] = 0; //zero stuff the rest
       
       /*
       * Multiply the last N inputs by the appropriate coefficients.
       * Their sum is the current output.
       */      
-      y = 0;
-      for (idxF = 0; idxF < N; idxF++) 
+      
+      for (y = 0, idxF = 0; idxF < N; idxF+=interpFactor) //Skip over zero stuffed entries -- should speed things up nicely!
+      //for (y = 0, idxF = 0; idxF < N; idxF++) 
          { 
-         y += filterCoeffs[idxF] * x[(oldest + idxF+1) % N];         
+         //y += filterCoeffs[idxF] * x[(oldest + idxF+1) % N]; //follow the X buffer
+         y += filterCoeffs[(N-(oldest - idxF+1)) % N] * x[idxF]; //follow the LPF buffer
+         //printf("[%d]%f*[%d]%f\t[%d]%f*[%d]%f \n",idxF,filterCoeffs[idxF],(oldest + idxF+1) % N,x[(oldest + idxF+1) % N],N-(oldest - idxF+1) % N,filterCoeffs[N-(oldest - idxF+1) % N],idxF,x[idxF]);
          }  
+      //printf("-------\n");
       
       dataStreamOut[idxO] = y; 
       dataStreamOutTime[idxO] = dataStreamInTime[idxI];  
@@ -67,7 +72,7 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
    }
 
 /*
- * Sample the input signal (perhaps via A/D).
+ * Low Pass Filter 
  */
 void LowPassFilter(double *dataStream, unsigned long nSamples, double *filterCoeffs, int N)
    {
