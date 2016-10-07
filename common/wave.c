@@ -296,3 +296,132 @@ char* seconds_to_time(double raw_seconds)
    sprintf(hms, "%d:%d:%d.%d", hours, minutes, seconds, milliseconds);
    return hms;
    }
+  
+int GetComplexRawChunk(FILE *rawFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples)
+{
+//we *will* use header, with some predefined assumptions about your RAW file. Make sure those things are filled out before passing it!
+   if(header.channels != 2)
+      {
+      printf("Complex read requires 2 channels (I and Q)\n");
+      exit(1);
+      }
+   if (rawFilePtr == NULL)
+      {
+      printf("Error opening file\n");
+      exit(1);
+      }
+   if ( waveData == NULL || waveDataTime == NULL)
+      {
+      printf("Dude, allocate your fracking memory already. UGH. \n");
+      exit(1);
+      }  
+   
+   long i =0;
+   long size_of_each_sample = (header.channels * header.bits_per_sample) / 8;
+   // long double maxsize=0; // don't normalize RAW floats
+   unsigned char data_buffer[size_of_each_sample];
+   int  size_is_correct = TRUE;
+   int read;
+   float *floatVal;
+   static double time=0, Ts=0;
+   double realVal, imagVal;
+   //int16_t data_in_channel = 0;
+   int32_t data_in_channel = 0; //override from wavelib using RAW because RAW is always 32-bit float (for now, unless someone needs it to be different)
+   
+   if(Ts == 0)
+      Ts = 1.0/(double)header.sample_rate;
+   
+   // make sure that the bytes-per-sample is completely divisible by num.of channels
+   long bytes_in_each_channel = (size_of_each_sample / header.channels);
+   if ((bytes_in_each_channel  * header.channels) != size_of_each_sample)
+      {
+      printf("Error: %ld x %ud <> %ld\n", bytes_in_each_channel, header.channels, size_of_each_sample);
+      size_is_correct = FALSE;
+      }
+   
+   if (size_is_correct) 
+      {
+      /*don't normalize RAW floats
+      switch (header.bits_per_sample)
+            {
+            case 8:
+               //maxsize = 128;
+               break;
+               
+            case 16:
+               
+               //maxsize = 32768;
+               break;
+               
+            case 32:
+               
+               //maxsize = 2147483648LL;
+               //maxsize = 1.0; //32-bit float
+               break;
+            }
+      */
+      for (i =0; i < nSamples; i++) 
+         {
+         //printf("==========Sample %ld / %ld=============\n", i, nSamples   );
+         read = fread(data_buffer, sizeof(data_buffer), 1, rawFilePtr);
+         if (read == 1) 
+            {            
+            // dump the data read
+            unsigned int  xchannels = 0;
+            
+            for (xchannels = 0; xchannels < header.channels; xchannels ++ ) 
+               {
+               //printf("Channel#%d : ", (xchannels+1));
+               // convert data from little endian to big endian based on bytes in each channel sample
+               if (bytes_in_each_channel == 4) //32-bit float -- ALWAYS USED FOR RAW FILES 
+                  {
+                  //data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
+                  data_in_channel = (data_buffer[xchannels*bytes_in_each_channel+0] | 
+                                    (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
+                                    (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
+                                    (data_buffer[xchannels*bytes_in_each_channel+3] << 24)
+                                    );
+                  floatVal = &data_in_channel; //Is there a better way to typecast the data directly to a float?
+                  //printf("%f\t",*floatVal);
+                  //data_in_channel = data_in_channel / 2147483648.0; //don't normalize floats!
+                  }                                               
+               else if (bytes_in_each_channel == 2) //16-bit, UNUSED FOR RAW FILES
+                  {
+                  exit(1);
+                  data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | (data_buffer[xchannels*bytes_in_each_channel+1] << 8);
+                  //data_in_channel = data_in_channel / 32768.0; //normalize
+                  }
+               else if (bytes_in_each_channel == 1)  //8-bit, UNUSED FOR RAW FILES
+                  {
+                  exit(1);
+                  data_in_channel = data_buffer[0];
+                  //data_in_channel = data_in_channel / 128.0; //normalize
+                  }               
+               
+               //return normalized complex data
+               if(xchannels == 0) //Real channel is first (I)
+                  {
+                  realVal = *floatVal;
+                  //realVal =  data_in_channel;///maxsize; //don't normalize floats!                  
+                  }
+               else //Imaginary channel is second (Q)
+                  {
+                  imagVal   = *floatVal;
+                  //imagVal = data_in_channel;///maxsize; //don't normalize floats!                  
+                  waveData[i] = realVal + imagVal * I;
+                  time += Ts;
+                  waveDataTime[i] = time;
+                  }
+               }
+            
+            //printf("\n");
+            }
+         else 
+            {
+            //EOF!           
+            return i; //Should this be i+1 ? I think so...
+            }            
+         } //    for (i =1; i <= nSamples; i++) {         
+      } //    if (size_is_correct) {         
+   return nSamples;
+}

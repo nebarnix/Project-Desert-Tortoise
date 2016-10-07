@@ -20,10 +20,12 @@ typedef struct HEADER
    unsigned int bits_per_sample;               // bits per sample, 8- 8bits, 16- 16 bits etc
    unsigned char data_chunk_header [4];        // DATA string or FLLR string
    unsigned int data_size;                     // NumSamples * NumChannels * BitsPerSample/8 - size of the next chunk that will be read
+   unsigned char type;                         //0-wav, 1-raw
    } HEADER;
 
 void printHeaderInfo(HEADER header);
 HEADER ReadWavHeader(FILE *waveFilePtr);
+int GetComplexRawChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples); //I know, I know, its a bastardization of a wave library but hey....
 int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples);   
 char* seconds_to_time(double raw_seconds);
 #endif
