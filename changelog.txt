@@ -1,7 +1,18 @@
 TODO
 [ ] Add in total execution time summary for recorded files (for benchmarking porpoises)
+[ ] Maybe give some quick instructions screen if no files are passed, or when the audio channel is opened (like what frequencies to tune to)
+[ ] Don't create zero sized output files
+[ ] Write index numbers (line numbers) before time
+[ ] Write quality indicator value to minorframe after time
+[ ] Find out how to estimate number of points for RAW files (read file size and divide sort of thing)
+[ ] Decide if it is worth it to use function pointers for configurations RAW vs WAVE
+[ ] Figure out why ANSI color stopped working in the console
 
 COMMONLIBS
+October 7, 2016
+-Wave.c
+--Added function to getComplexRawChunks() which is a small tweak on getComplexWaveChunks() due to the IEEE floats it reads in instead of integers. 
+
 Sept 27, 2016
 -Lowwpassfilter.c
 --Added skipping of zero stuffed places to remove the interpolation penalty
@@ -12,7 +23,15 @@ Sept 25, 2016
 -IDEA! Unlock (or even reset) the PLL if the quality estimator is very low for a long time-- we may have a false lock on a nearby signal
 
 POES POST
-Sept 27, 2016
+October 7, 2016
+-main.c
+--Added #define's for quality thresholds to reduce magic numbers. 
+--Added ability to read RAW files!
+--Tweaked DSP_PLL_LOCK_THRESH to 0.05 (was 0.025) as it was locking falsely onto known good data. was was (0.1) failed to lock quickly and let lots of frames slip by. (0.05) worked well across multiple data sets. Maybe add a command line override for power users?
+
+Sept 28, 2016
+-main.c
+--Fixed crash bug caused by calling free(dataStreamReal) multiple times
 
 Sept 25, 2016
 -Restored archived bytesync.c
@@ -26,12 +45,21 @@ Sept 25, 2016
 -fixed bug where check for filename was done after trying to use it -- with expected results
 
 POES REALTIME
+October 7, 2016
+-main.c
+--Added #define's for quality thresholds to reduce magic numbers. 
+Sept 28, 2016
+-main.c
+--Fixed crash bug caused by calling free(dataStreamReal) multiple times
 Sept 25, 2016
 -Restored bytesync.c from POES POST using updates documented
 --Reverted function call in main to old format (removed two passed variables)
 -Fixed typo: WAS DSP_PLL_LOCK_ALPA  SB DSP_PLL_LOCK_ALPHA
 
 ARGOS POST
+Sept 28, 2016
+-main.c
+--Fixed crash bug caused by calling free(dataStreamReal) multiple times
 Sept 27, 2016
 -Forgot to free buffer for logsignalstream. Fixed.
 -Implemented raw data output upon command line flag
@@ -57,6 +85,9 @@ Sept 25, 2016
 -fixed bug where check for filename was done after trying to use it -- with expected results
 
 ARGOS REALTIME
+Sept 28, 2016
+-main.c
+--Fixed crash bug caused by calling free(dataStreamReal) multiple times
 Sept 27, 2016
 -Forgot to free buffer for logsignalstream. Fixed.
 Sept 25, 2016
