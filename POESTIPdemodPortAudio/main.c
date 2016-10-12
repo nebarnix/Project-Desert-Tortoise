@@ -7,7 +7,14 @@
 #include <math.h>
 #include <time.h>
 #include <conio.h>
-//#include "wave.h"
+
+#if defined (__WIN32__)
+  #include <windows.h>
+  #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+     #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+  #endif
+#endif
+
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
 #include "../common/LowPassFilter.h"
@@ -53,6 +60,11 @@
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
+
+#define QUALITY_SHIT -20 
+#define QUALITY_LOW -6
+#define QUALITY_MEDIUM -5
+#define QUALITY_GOOD -4.3
 
 //#define RAW_OUTPUT_FILES
 
@@ -116,9 +128,11 @@ int main(int argc, char **argv)
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];   
    
-   
-   
    //const char *build_date = __DATE__;
+   //enable ANSI color formatting for (newer) windows builds!
+   #if defined (__WIN32__)
+      SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
+   #endif
    printf("Project Desert Tortoise: Realtime NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    printf("Please tune SDR input to NOAA-15/18 137.350Mhz or NOAA-19 137.770Mhz\n");
    printf("Please set bandwidth to >=32khz, filter order lowest possible, RAW output mode\n");
@@ -315,13 +329,14 @@ while(!kbhit())
       #endif
       
             //ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, unsigned long nSymbols, unsigned char *bitStream, double resyncThreshold)
-      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
+      nBits = ManchesterDecode(dataStreamSymbols, dataStreamLPFTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
       
       #ifdef RAW_OUTPUT_FILES
          fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr2);
       #endif
       
-      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);      
+      //it would be nice if this could output some quality information using averagePhase <3
+      nFrames = ByteSyncOnSyncword(dataStreamBits, dataStreamLPFTime, nBits, "1110110111100010000", 19, minorFrameFile);      
       
       totalBits += nBits;
       totalFrames += nFrames;
@@ -333,13 +348,13 @@ while(!kbhit())
       
       averagePhase = 10.0 * log10( pow(1.5708 - averagePhase,2));
       
-      if(averagePhase > -4.3)
+      if(averagePhase > QUALITY_GOOD)
          snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_GREEN,averagePhase,ANSI_COLOR_RESET);
-      else if(averagePhase > -5)
+      else if(averagePhase > QUALITY_MEDIUM)
          snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_YELLOW,averagePhase,ANSI_COLOR_RESET);
-      else if(averagePhase > -6)
+      else if(averagePhase > QUALITY_LOW)
          snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_YELLOW,averagePhase,ANSI_COLOR_RESET);
-      else
+      else //QUALITY_SHIT
          snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_RED,averagePhase,ANSI_COLOR_RESET);
       
       //SUPRESS OUTPUT HERE
