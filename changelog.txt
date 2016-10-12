@@ -6,7 +6,7 @@ TODO
 [ ] Write quality indicator value to minorframe after time
 [ ] Find out how to estimate number of points for RAW files (read file size and divide sort of thing)
 [ ] Decide if it is worth it to use function pointers for configurations RAW vs WAVE
-[ ] Figure out why ANSI color stopped working in the console
+[ ] Track clock recovery timing bug where zeros are sometimes output for time, but fixing this (return count-1) seems to induce bit errors down the line (parity checks fail ~25% more frames)
 
 COMMONLIBS
 October 7, 2016
@@ -23,6 +23,11 @@ Sept 25, 2016
 -IDEA! Unlock (or even reset) the PLL if the quality estimator is very low for a long time-- we may have a false lock on a nearby signal
 
 POES POST
+October 12, 2016
+-main.c
+--Got ANSI colors working again on (newer) windows machines. 
+--Fixed timing related bugs where the wrong (the original time array) was being fed to ManchesterDecode() and ByteSyncOnSyncword() instead of the decimated dataStreamLPFTime
+
 October 7, 2016
 -main.c
 --Added #define's for quality thresholds to reduce magic numbers. 
@@ -45,6 +50,11 @@ Sept 25, 2016
 -fixed bug where check for filename was done after trying to use it -- with expected results
 
 POES REALTIME
+October 12, 2016
+-main.c
+--Got ANSI colors working again on (newer) windows machines. 
+--Fixed timing related bugs where the wrong (the original time array) was being fed to ManchesterDecode() and ByteSyncOnSyncword() instead of the decimated dataStreamLPFTime
+
 October 7, 2016
 -main.c
 --Added #define's for quality thresholds to reduce magic numbers. 
