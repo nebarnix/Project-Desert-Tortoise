@@ -16,7 +16,7 @@
 int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
    {   
    static char firstTime = 1;
-   static char *historyBufferCirc; //circular buffer
+   static char *historyBufferCirc=NULL; //circular buffer
    static int oldest = 0, syncIndicator, frameByteIdx, minorFrameShiftFlag, bitIdx;   
    static unsigned char zero=0, one=1;
    static unsigned char byte=0;
@@ -51,11 +51,11 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
             }
          else
             {
-            byte = byte << 1; //This is a one, set the bit then shift               
+            byte = byte << 1; //This is a one, set the bit then shift
             byte = byte | one;
             }
          
-         bitIdx++;   
+         bitIdx++;
          if(bitIdx > 7)
             {
             //minorFrame[frameByteIdx]=byte;
@@ -72,9 +72,11 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          }         
          
       //overwrite oldest bit in cir buffer with newest bit   
-      historyBufferCirc[oldest] = bitStreamIn[idx];       
+      historyBufferCirc[oldest] = bitStreamIn[idx];
+      
       //printf("h[%d]=%c\n",oldest, historyBufferCirc[oldest]);
-      syncIndicator = 1;
+      
+      syncIndicator = 1; //setting this to zero will disable this syncword 
             
       //Look for syncword
       for (idx2 = 0; idx2 < syncWordLength; idx2++) 
@@ -101,11 +103,10 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          byte=0;
          zero = 0;
          one = 1;
-         //bitIdx=;
          }             
          
       //Look for Inverse Syncword
-      syncIndicator = 1;
+      syncIndicator = 1; //setting this to zero will disable this syncword 
       for (idx2 = 0; idx2 < syncWordLength; idx2++) 
          {
          //compare syncword bytes to appropriate circular buffer bytes

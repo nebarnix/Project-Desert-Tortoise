@@ -8,6 +8,14 @@
 #include <tgmath.h>
 #include <time.h>
 #include <conio.h>
+
+#if defined (__WIN32__)
+  #include <windows.h>
+  #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+     #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+  #endif
+#endif
+
 #include "../common/wave.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
@@ -82,7 +90,7 @@ const char *get_filename_ext(const char *filename)
    }   
    
 int main(int argc, char **argv) 
-      {
+   {
    //Wave variable
    HEADER header;
    
@@ -116,7 +124,10 @@ int main(int argc, char **argv)
    char outputRawFiles=0;
    
    //int *GetComplexChunk(FILE *, HEADER, double complex*, double *, int); it would be nice to use function pointers here to remove a conditional each chunk...
-   
+   //enable ANSI color formatting for (newer) windows builds!
+   #if defined (__WIN32__)
+      SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), ENABLE_VIRTUAL_TERMINAL_PROCESSING | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT);
+   #endif
    printf("Project Desert Tortoise: Wave file NOAA TIP Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    
    while ((c = getopt (argc, argv, "s:rn:c:")) != -1)
@@ -292,7 +303,7 @@ int main(int argc, char **argv)
          nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
       else
          nSamples = GetComplexRawChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
-      
+        
          //printf("2: %ld\t",clock()-benchTime); benchTime = clock();
       if(i == 0 && normFactor == 0)
          {
@@ -327,7 +338,7 @@ int main(int argc, char **argv)
       
       //LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);
       LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, nSamples, filterCoeffs, DSP_LPF_ORDER, DSP_LPF_INTERP);
-      //printf("6: %ld\t",clock()-benchTime); benchTime = clock();
+      //printf("6: %ld\t",clock()-benchTime); benchTime = clock();      
       
       //if(outputRawFiles == 1)         
       //   fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);
@@ -337,6 +348,8 @@ int main(int argc, char **argv)
       //NormalizingAGC(dataStreamReal, nSamples, 0.00025);
       NormalizingAGC(dataStreamLPF, nSamples*DSP_LPF_INTERP, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
       
+      
+      
       /*if(outputRawFiles == 1)         
          fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);*/
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
@@ -344,16 +357,21 @@ int main(int argc, char **argv)
       //printf("7: %ld\t\n\n",clock()-benchTime); benchTime = clock();
       nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, nSamples*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);            
       
-      if(outputRawFiles == 1)         
-         fwrite(dataStreamLPF, sizeof(double), nSymbols,rawOutFilePtr);
+      //if(outputRawFiles == 1)         
+      //   fwrite(dataStreamLPFTime, sizeof(double), nSymbols,rawOutFilePtr);
       
       //printf("8: %ld\t",clock()-benchTime); benchTime = clock();
-      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
+      //nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, 1.0);
+      nBits = ManchesterDecode(dataStreamSymbols, dataStreamLPFTime, nSymbols, dataStreamBits, 1.0);
+      
+      //if(outputRawFiles == 1)         
+      //   fwrite(dataStreamLPFTime, sizeof(double), nBits,rawOutFilePtr);
+      
       //int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile);
       //printf("9: %ld\t",clock()-benchTime); benchTime = clock();
       
       //it would be nice if this could output some quality information using averagePhase <3
-      nFrames = ByteSyncOnSyncword(dataStreamBits, waveDataTime, nBits, "1110110111100010000", 19, minorFrameFile);
+      nFrames = ByteSyncOnSyncword(dataStreamBits, dataStreamLPFTime, nBits, "1110110111100010000", 19, minorFrameFile);
       
       //printf("10: %ld\t\n\n",clock()-benchTime); benchTime = clock();
       totalBits += nBits;
@@ -387,7 +405,7 @@ int main(int argc, char **argv)
          fVal = (cimagf(waveData[i]));
          fwrite(&fVal,sizeof(fVal),1,rawOutFilePtr);
          }*/
-         
+       //break;  
       }
    
    //printf("\nChecksum0=%X Checksum1=%X Checksum2=%X Checksum3=%X", CheckSum0, CheckSum1,CheckSum2,CheckSum3);
