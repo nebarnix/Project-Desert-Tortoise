@@ -1,6 +1,6 @@
 %#codegen
 %PLL Carrier Tracking Loop
-function [dataStreamOut, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, freqRange, d_lock_threshold, loopbw_acq, loopbw_track)
+function [dataStreamOut, d_phasei, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, freqRange, d_lock_threshold, loopbw_acq, loopbw_track)
 %d_lock_threshold = 0.5;
 %d_alpha = 0.01; %aquisition gain
 %d_alpha = loopbw_acq;
@@ -69,7 +69,7 @@ for idx=1:numel(dataStreamIn)
     %Shift frequency by loop phase
     
     dataStreamOut(idx) = imag(dataStreamIn(idx) * (t_real+1i*-t_imag));
-    
+    d_phasei(idx) = atan2(imag(dataStreamIn(idx) * (t_real+1i*-t_imag)),real(dataStreamIn(idx) * (t_real+1i*-t_imag)));
     %float re, im;
     %gr::sincosf(d_phase, &im, &re);
     %out[i] = (in[i]*gr_complex(re, -im)).imag();
@@ -111,6 +111,7 @@ for idx=1:numel(dataStreamIn)
     end
     
     d_freqi(idx) = d_freq;
+    %d_phasei(idx) = d_phase;
     
     %d_locksig = d_locksig * (1.0 - d_alpha) + d_alpha*(real(dataStreamIn(idx)) * t_real + imag(dataStreamIn(idx)) * t_imag);
     d_locksig = d_locksig * (1.0 - lockSigAlpha) + lockSigAlpha*(real(dataStreamIn(idx)) * t_real + imag(dataStreamIn(idx)) * t_imag);

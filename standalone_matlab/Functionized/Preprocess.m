@@ -2,7 +2,10 @@
 %tic;
 clear all;
 %hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\35-N19\15-53-35_137770kHz_50k.wav';
+%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\40 N18\2016_05_04_5PM_Ascending_N18.wav';
+%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\40 N18\2016_05_04_5PM_Ascending_N18.wav';
 hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\33-N18 hackrf\18-01-50_137350kHz_50k.wav';
+%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\6-NOAA15\baseband\NOAA15_06092015_telemetry_50k_normalized.wav'; 
 %hfile = 'C:\sdrsharp\sdr-install 1347\sdrsharp\IF\2016_04_25\07-10-40_137350kHz.wav'; 
 %fid = fopen(hfile,'rb');
 [audioData,Fs] = audioread(hfile);
@@ -23,7 +26,8 @@ fprintf(['Loaded IQ WAV file, Sample rate detected as ' num2str(Fs/1000) 'Ksps\n
 %tic;
 clear all;
 %hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\6-NOAA15\baseband\NOAA15_06092015_telemetry_50k.raw'; 
-hfile = 'F:\POES\6-NOAA15\NOAA15_06092015_telemetry_50k.raw';
+%hfile = 'F:\POES\6-NOAA15\NOAA15_06092015_telemetry_50k.raw';
+hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\9-NOAA15\baseband\18-58-20_137350kHz_crop_50k.raw';
  
 fid = fopen(hfile,'rb');
 dataStreamIn = fread(fid,'float32');
@@ -33,7 +37,7 @@ dataStreamIn = (dataStreamIn(2:2:end) + 1i*dataStreamIn(1:2:end))';
 
 Nfft = 1500000;
 
-Fs=Fs;
+Fs=50e3;
 Ts = 1/(Fs);
 BasebandRawTime=0:Ts:Ts*(numel(dataStreamIn)-1);
 n=1;
@@ -51,11 +55,11 @@ fprintf(['Loaded IQ RAW file, using ' num2str(Fs/1000) 'Ksps as sample rate\n'])
 dataStreamIn = StaticGain(dataStreamIn(end/2:end/2+10000),10000,0.637).*dataStreamIn;
 
 %[dataStreamAGC] = NormalizingAGC(dataStreamIn,.0000001);
-%[dataStreamAGC] = NormalizingAGC(dataStreamIn,.00001);
+dataStreamAGC = NormalizingAGC(dataStreamIn,.00001);
 
 %PLL Carrier Tracking Loop
 %clear dataStreamPLLOut;
-[dataStreamPLLOut, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, 4500, 0.1, 0.01, 0.001);
+[dataStreamPLLOut, d_phasei, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, 4000, 0.01, 0.01, 0.001);
 fprintf(['Locked at ' num2str(d_freqi(firstLock)) 'Hz\n']);
 % %% Write results to wav file, making sure no value exceeds 1...
 % audiowrite('PLL.wav',dataStreamPLLOut ./ max(dataStreamPLLOut),Fs,'BitsPerSample',16);
@@ -89,7 +93,7 @@ fprintf(['Locked at ' num2str(d_freqi(firstLock)) 'Hz\n']);
  figure(5);
  plotyy(1:numel(d_locksigi(1:10000:end)),d_locksigi(1:10000:end),1:numel(d_freqi(1:10000:end)),d_freqi(1:10000:end).*Fs./(2.*pi));
  %axis 'tight';
-
+%%
 % %Plot bit strengths
 % figure(6);
 % %subplot(2,1,1);
@@ -175,9 +179,9 @@ fprintf('done.\n');
 
 %manchester threshold to the inverse gain of what it takes to get to 1 which should make
 %it right at the center of the constellation points
-[machesterStreamBits, machesterStreamBitime] = manchesterDecodeFloat(dataStreamBits, dataStreamBitsTime, 1/StaticGain(dataStreamBits(end/2:end/2+10000),10000,1));
-[SyncWordIndex, SyncWordInvIndex] = syncWordDetect(machesterStreamBits);
-[minorFrames, frameTime] = convertBitsToBytes(machesterStreamBits, machesterStreamBitime, SyncWordIndex, SyncWordInvIndex);
+[manchesterStreamBits, machesterStreamBitime] = manchesterDecodeFloat(dataStreamBits, dataStreamBitsTime, 1/StaticGain(dataStreamBits(end/2:end/2+10000),10000,1));
+[SyncWordIndex, SyncWordInvIndex] = syncWordDetect(manchesterStreamBits);
+[minorFrames, frameTime] = convertBitsToBytes(manchesterStreamBits, machesterStreamBitime, SyncWordIndex, SyncWordInvIndex);
 [dayNum, spaceCraft, minorFrameID] = daytimeDecode(minorFrames, frameTime);
 %plotyy(BasebandRawTime(1:1000:end),d_locksigi(1:1000:end),frameTime(:,5),minorFrameID);
 [goodFrames, parity] = checkParity(minorFrames);
@@ -186,12 +190,16 @@ fprintf('done.\n');
 
 dataStreamIn = StaticGain(dataStreamIn(end/2:end/2+10000),10000,0.637).*dataStreamIn;
 
-[dataStreamPLLOut, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, 4500, 0.025, 0.0075*2, 0.005/4); %Optimized at 50ksps, probably changes at different sample rates?
+dataStreamIn = NormalizingAGC(dataStreamIn,.0001);
+
+[dataStreamPLLOut, d_phasei, d_freqi, d_locksigi, firstLock] = CarrierTrackPLL(dataStreamIn, Fs, 4500, 0.025, 0.0075*2, 0.005/4); %Optimized at 50ksps, probably changes at different sample rates?
 fprintf(['Locked at ' num2str(d_freqi(firstLock)*Fs/(2*pi)) 'Hz\n']);
 
 %Plot lock and frequency
 figure(10);
 plotyy(1:numel(d_locksigi(1:10000:end)),d_locksigi(1:10000:end),1:numel(d_freqi(1:10000:end)),d_freqi(1:10000:end).*Fs./(2.*pi));
+
+
 %Lowpass filter the data
 
 fprintf('Lowpass Filtering...');
@@ -202,22 +210,51 @@ filterOrder = 26; %26 was the default previously
 %LPFTaps = fir1(filterOrder,(11e3/(Fs/2)),blackman(filterOrder+1));
 filterTaps = fir1(filterOrder,(11e3/(Fs/2)),blackman(filterOrder+1));
 %LPFTaps = fir1(filterOrder,(11e3/(Fs/2)));
-dataStreamLPF = filter(filterTaps,1,dataStreamPLLOut);
-%dataStreamLPF = filter(1/4*[1 1 1 1],1,dataStreamAGC); %moving avg
-fprintf('done.\n');
 
+%dataStreamPLLOut = wgn(20390533,1,10);
+%dataStreamPLLOut = rand(20390533,1);
+%dataStreamAmplitudeRaw = FindAverageAmplitude(dataStreamPLLOut,0.0001);
+dataStreamLPF = filter(filterTaps,1,dataStreamPLLOut);
+%dataStreamAmplitudeFilt = FindAverageAmplitude(dataStreamLPF,0.0001);
+
+%dataStreamLPF = filter(1/4*[1 1 1 1],1,dataStreamAGC); %moving avg
+%SNROffset = 8.2362;%for 52.625ksps
+%SNROffset = 8.6790;%for 50kbps
+%SNROffset = 9.0211;%for 48ksps
+%SNROffset = 14.5793;%for 32kbps
+
+%SNRa = -1493.81599470148;
+%SNRb = 6.63640578167269E-02;
+%SNRc = -1.67914647611797E-06;
+
+%SNROffset = (Fs / ((SNRa + (SNRb * Fs)) - (SNRc * (Fs^2))));
+   
+%SNR = 10 .* log10((dataStreamAmplitudeRaw .^ 2 ./ (dataStreamAmplitudeRaw-dataStreamAmplitudeFilt) .^ 2 ))-SNROffset; 
+%SNR = 10 .* log10((dataStreamAmplitudeFilt .^ 2) ./ (dataStreamAmplitudeRaw-dataStreamAmplitudeFilt) .^ 2 ); 
+%min(SNR(200e3:end))
+%figure(11);
+%plot(SNR);
+
+fprintf('done.\n');
+ 
 [dataStreamAGC, gaini] = NormalizingAGC(dataStreamLPF,.00025);
 
+%[dataStreamBits, dataStreamBitsTime] = UpsamplingMMClockRecovery(dataStreamAGC, BasebandRawTime, Fs, 8320*18, 8320*2-1, 10, 0.15);
+%[dataStreamBits, dataStreamBitsTime] = UpsamplingMMClockRecovery(dataStreamAGC, BasebandRawTime, Fs, 8320*18, 8320*2+0.3, 15, 1);
+%[dataStreamBits, dataStreamBitsTime] = UpsamplingMMClockRecovery2(dataStreamAGC, BasebandRawTime, Fs, 8320*18, 8320*2+0.3, 0.05, 20);
+[dataStreamBits, dataStreamBitsTime] = UpsamplingGardenerClockRecovery2(dataStreamAGC, BasebandRawTime, Fs, 150e3, 8320*2+0.3, 0.1, 2.5);
+%[dataStreamBits, dataStreamBitsTime] = UpsamplingGardenerClockRecovery(dataStreamAGC, BasebandRawTime, Fs, 8320*18, 8320*2, 20, .1);
 
-[dataStreamBits, dataStreamBitsTime] = UpsamplingMMClockRecovery(dataStreamAGC, BasebandRawTime, Fs, 8320*18, 8320*2-1, 10, 0.15);
+%fprintf('Decoding Manchester Bits...'); [manchesterStreamBits, machesterStreamBitime] = manchesterDecodeFloat2(dataStreamBits, dataStreamBitsTime, 1/StaticGain(dataStreamBits(end/2:end/2+10000),10000,1)); %fprintf('Manchester Decoding Done.\n');
+fprintf('Decoding Manchester Bits...'); [manchesterStreamBits, machesterStreamBitime] = manchesterDecodeFloat2(dataStreamBits, dataStreamBitsTime, 0.75);
+fprintf('Detecting Syncword...'); [SyncWordIndex, SyncWordInvIndex] = syncWordDetect(manchesterStreamBits); %fprintf('Syncword Detect Done.\n');
 
-fprintf('Decoding Manchester Bits...'); [machesterStreamBits, machesterStreamBitime] = manchesterDecodeFloat(dataStreamBits, dataStreamBitsTime, 1/StaticGain(dataStreamBits(end/2:end/2+10000),10000,1)); %fprintf('Manchester Decoding Done.\n');
-fprintf('Detecting Syncword...'); [SyncWordIndex, SyncWordInvIndex] = syncWordDetect(machesterStreamBits); %fprintf('Syncword Detect Done.\n');
-fprintf('Converting Bits to Frames...'); [minorFrames, frameTime] = convertBitsToBytes(machesterStreamBits, machesterStreamBitime, SyncWordIndex, SyncWordInvIndex); fprintf('done.\n');
+fprintf('Converting Bits to Frames...'); [minorFrames, frameTime] = convertBitsToBytes(manchesterStreamBits, machesterStreamBitime, SyncWordIndex, SyncWordInvIndex); fprintf('done.\n');
 fprintf('Decoding Day and Time...\n'); [dayNum, spaceCraft, minorFrameID] = daytimeDecode(minorFrames, frameTime);  %fprintf('Day Time Decoding Finished.\n');
 %plotyy(BasebandRawTime(1:1000:end),d_locksigi(1:1000:end),frameTime(:,5),minorFrameID);
 fprintf('Checking Parity...'); [goodFrames, parity] = checkParity(minorFrames);  %fprintf('Parity Check Done.\n');
-yield(sampleInterpt,1) = goodFrames;
-yield(sampleInterpt,2) = size(minorFrames,1);
-
-%plot(1:size(yield,1),yield(:,1),1:size(yield,1),yield(:,2))
+%yield(sampleInterpt,1) = goodFrames;
+%yield(sampleInterpt,2) = size(minorFrames,1);
+%%
+figure(12);
+plotyy(BasebandRawTime,SNR,frameTime(:,1),minorFrameID); %plot signal to ratio vs detected frames

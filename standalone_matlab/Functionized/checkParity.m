@@ -53,7 +53,7 @@ for frame=1:size(minorFrames,1)
               parity(frame,5) = parity(frame,5)+bitand(bitshift(byte,-shift),1);   
            end       
     end
-        
+   parity
     if(mod(parity(frame,1),2) == bitand(bitshift(minorFrames(frame,104),-5),1)) %check if divisible by 2 (even)       
         parity(frame,1) = 0; %words might be good or might have an even number of bit errors         
     else        

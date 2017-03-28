@@ -4,12 +4,14 @@ clear all;
 %clf;
 %hfile = 'POES_56k250.raw';
 %hfile = 'pll_nocarrier_polyphased_equalized_loproto2.raw';
-%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\6-NOAA15\6_bits_dcblock.raw'; 
+%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\6-NOAA15\6_bits_dcbloc.raw'; 
 %hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\38-N18 SDRplay\bits_grc.raw';
-hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\33-N18 hackrf\33_bits_50k.raw';
+%hfile = 'C:\Users\nebarnix\Documents\vmshare\POES\33-N18 hackrf\33_bits_50k.raw';
+hfile = '33_bits.raw';
 %hfile = 'e:\N15_Aug0415_bits.raw';
 %hfile = 'e:\N18_Aug0415_bits.raw';
 %hfile = '06-28-39_137350kHz_bits.raw'; 
+
 fid = fopen(hfile,'rb');
 y = fread(fid,'float32');
 
@@ -648,6 +650,8 @@ for frame=1:length(HIRSdata) %loop through each frame
 %           HIRSwords(frame,idx+1) = uint16(byte);                                      
 %       end
       
+      %you keep saying 3-22 but I see >1 listed below?! (ah! because idx
+      %starts at 0, so 0=1, 1=2, 2=3, 3-22 means >1 or >=2)
       if idx > 1 && bitshift(byte,-12) == 0 %if this is word 3-22, check the sign bit, then mask it out
           HIRSwords(frame,idx+1) = -int16(bitand(byte,4095)); %12 1's = 4095          
           %HIRSwords(frame,idx+1) = -4096;
@@ -684,7 +688,7 @@ title('element number');
 
 ax3=subplot(3,1,3);
 %plot(HIRSTime(:,8),HIRSwords(:,8),'x'); %63 = bin2dec('111111')
-plot(HIRSTime(:,2),HIRSwords(:,3:end-1),'-x')
+plot(HIRSTime(:,2),HIRSwords(:,3:end-1),'-x') %except time isn' right here because we didn't do a good breakdown of each element...
 title('element X data');
 
 linkaxes([ax1, ax2, ax3],'x');
@@ -1731,6 +1735,7 @@ set(h_legend,'Location','best');
 axis([1 numel(TED_0EFL) -0.5 17]);
 
 subplot(3,2,5);
+%why arent you plotting Electrons?
 plot(1:numel(TED_0DP1),TED_0DP1,1:numel(TED_0DP2),TED_0DP2,1:numel(TED_0DP3),TED_0DP3,1:numel(TED_0DP4),TED_0DP4,1:numel(TED_3DP1),TED_3DP1,1:numel(TED_3DP2),TED_3DP2,1:numel(TED_3DP3),TED_3DP3,1:numel(TED_3DP4),TED_3DP4,1:numel(TED_0DP1),TED_0DP1,1:numel(TED_0DP2),TED_0DP2,1:numel(TED_0DP3),TED_0DP3,1:numel(TED_0DP4),TED_0DP4,1:numel(TED_3DP1),TED_3DP1,1:numel(TED_3DP2),TED_3DP2,1:numel(TED_3DP3),TED_3DP3,1:numel(TED_3DP4),TED_3DP4);
 %plot(1:numel(TED_0DE1),TED_0DE1,1:numel(TED_0DE2),TED_0DE2,1:numel(TED_0DE3),TED_0DE3,1:numel(TED_0DE4),TED_0DE4,1:numel(TED_3DE1),TED_3DE1,1:numel(TED_3DE2),TED_3DE2,1:numel(TED_3DE3),TED_3DE3,1:numel(TED_3DE4),TED_3DE4);
 %plot(1:numel(TED_0DP1),TED_0DP1,1:numel(TED_0DP2),TED_0DP2,1:numel(TED_0DP3),TED_0DP3,1:numel(TED_0DP4),TED_0DP4,1:numel(TED_3DP1),TED_3DP1,1:numel(TED_3DP2),TED_3DP2,1:numel(TED_3DP3),TED_3DP3,1:numel(TED_3DP4),TED_3DP4);
