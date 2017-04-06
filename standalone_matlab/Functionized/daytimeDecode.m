@@ -22,6 +22,7 @@ for frame=1:numel(minorFrameID)
         if((bitshift(bitand(minorFrames(frame,9+1),bin2dec('111')),24) + bitshift(minorFrames(frame,10+1),16) + bitshift(minorFrames(frame,11+1),8) + minorFrames(frame,12+1)) < 86400000)
             dayMSeconds(idx) = (bitshift(bitand(minorFrames(frame,9+1),bin2dec('111')),24) + bitshift(minorFrames(frame,10+1),16) + bitshift(minorFrames(frame,11+1),8) + minorFrames(frame,12+1));            
             T0MSeconds(idx) = dayMSeconds(idx)-frameTime(frame,1)*1000;
+            dayLocalSeconds(idx)=frameTime(frame,1);
         else
             dayMSeconds(idx) = -1;
             T0MSeconds(idx) = -1;
@@ -45,7 +46,7 @@ end
 
 for idx=1:numel(dayMSeconds)  
     if(dayMSeconds(idx) > 0)
-        fprintf([num2str(frameTime(frame,1)) ' Local Seconds is ' num2str(dayMSeconds(idx)/1000.0) ' Spacecraft Day Seconds' ]);
+        fprintf([num2str(dayLocalSeconds(idx)) ' Local Seconds is ' num2str(dayMSeconds(idx)/1000.0) ' Spacecraft Day Seconds' ]);
             
             hour = floor(dayMSeconds(idx)/(1000*60*60));
             minute = floor((dayMSeconds(idx)/(1000*60*60) - hour)*60);
