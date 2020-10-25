@@ -1,0 +1,17 @@
+# SDR Sharp Howto
+- If you are close to the transmitter:
+  - In the Device settings:
+    - disable RTL AGC
+    - set the RF Gain to 0dB
+- Tune SDR# to 401.650Mhz
+- In the Radio settings:
+  - select RAW output mode
+  - set bandwidth to 32khz
+  - set gain to 'unity gain'
+- In the Recording settings:
+  - Select Audio
+  - Deselect Baseband (the sample rate is _really_ high!)
+- Run the program and pass the .wav file as an arg
+  - e.g. demodARGOS.exe SDRSharp_20201025_074357Z_401606000Hz_IQ_Audio_Crop.wav
+- Enjoy your bits =3
+- Packets are saved to packets_YYYYMMDD_HHMMSS.txt file
