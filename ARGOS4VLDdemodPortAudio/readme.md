@@ -8,8 +8,5 @@
   - select RAW output mode
   - set bandwidth to 32khz
   - set gain to 'unity gain'
-- In the Recording settings:
-  - Select Audio
-  - Deselect Baseband (the sample rate is _really_ high!)
 - Run the program and enjoy your bits =3
 - Packets are saved to packets_YYYYMMDD_HHMMSS.txt file
