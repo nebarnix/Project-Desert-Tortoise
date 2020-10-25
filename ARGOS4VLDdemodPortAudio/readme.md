@@ -7,6 +7,8 @@
 - In the Radio settings:
   - select RAW output mode
   - set bandwidth to 32khz
+- In the Audio settings:
   - set gain to 'unity gain'
 - Run the program and enjoy your bits =3
 - Packets are saved to packets_YYYYMMDD_HHMMSS.txt file
+- If you want to (re)make the code, copy libportaudio.dll.a into (e.g.) MinGW\lib

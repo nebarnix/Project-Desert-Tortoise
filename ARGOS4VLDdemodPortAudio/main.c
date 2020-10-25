@@ -48,8 +48,6 @@
 
 //int spaceCraftID, dayNum,
 
-const unsigned int invertData = TRUE; // Invert the data
-
 unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    {
    unsigned int sum=0;
@@ -100,6 +98,8 @@ int main(int argc, char **argv)
    double *filterCoeffs=NULL, *waveDataTime=NULL;
    double complex *waveData=NULL;
 
+   unsigned int invertData = FALSE; // Invert the data
+
 
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
    int LPF_Order, nFrames=0, totalFrames=0,c;
@@ -110,10 +110,14 @@ int main(int argc, char **argv)
    //const char *build_date = __DATE__;
    printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
 
-   while ((c = getopt (argc, argv, "n:c:")) != -1)
+   while ((c = getopt (argc, argv, "in:c:")) != -1)
       {
       switch (c)
          {
+         case 'i':
+            invertData = TRUE; // Invert the data
+            printf("Inverting The Data\n");
+            break;
          case 'n':
             if(optarg == NULL)
                {

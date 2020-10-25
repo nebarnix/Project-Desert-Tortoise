@@ -40,8 +40,6 @@
 #define DSP_LPF_FC                  (700) //(was (700)
 #define DSP_LPF_ORDER               (50) //was (50)
 
-const unsigned int invertData = TRUE; // Invert the data
-
 unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    {
    unsigned int sum=0;
@@ -84,6 +82,8 @@ int main(int argc, char **argv)
    double *filterCoeffs=NULL, *waveDataTime=NULL;
    double complex *waveData=NULL;
 
+   unsigned int invertData = FALSE; // Invert the data
+
 
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
    int nFrames=0, totalFrames=0,c;
@@ -96,13 +96,17 @@ int main(int argc, char **argv)
    //const char *build_date = __DATE__;
    printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
 
-   while ((c = getopt (argc, argv, "rn:c:")) != -1)
+   while ((c = getopt (argc, argv, "rin:c:")) != -1)
       {
       switch (c)
          {
          case 'r':
             outputRawFiles = 1;
             printf("Outputting Debugging Raw Files\n");
+            break;
+         case 'i':
+            invertData = TRUE; // Invert the data
+            printf("Inverting The Data\n");
             break;
          case 'n':
             if(optarg == NULL)
