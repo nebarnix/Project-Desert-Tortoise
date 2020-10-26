@@ -3,7 +3,7 @@
   - In the Device settings:
     - disable RTL AGC
     - set the RF Gain to 0dB
-- Tune SDR# to 401.650Mhz
+- Tune SDR# to ~401.650Mhz
 - In the Radio settings:
   - select RAW output mode
   - set bandwidth to 32khz
@@ -20,3 +20,5 @@
     - 0xAC53531C651CECA2F followed by 0b011
 - Enjoy your bits =3
 - Packets are saved to packets_YYYYMMDD_HHMMSS.txt file
+
+![SDR# Capture](Capture.JPG)
