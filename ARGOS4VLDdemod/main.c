@@ -21,7 +21,7 @@
 #define FALSE 0
 #define DEFAULT_CHUNKSIZE  (1000)
 
-#define DSP_MAX_CARRIER_DEVIATION   (500.0) //was (550.0)
+#define DSP_MAX_CARRIER_DEVIATION   (250.0) //was (550.0)
 
 #define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
 #define DSP_PLL_LOCK_ALPHA          (0.004)
@@ -32,12 +32,12 @@
 #define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (200*2) //was (400*2) // ARGOS 4 PTT-VLD-A4 (A4-SS-TER-SP-0079-CNES) is 200bps
-#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
+#define DSP_MCHSTR_RESYNC_LVL       (1.0) //was (0.5)
 #define DSP_AGC_ATCK_RATE           (1e-1) //was (1e-1) //(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
 #define DSP_AGC_DCY_RATE            (2e-1) // was (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
 
 #define DSP_AGCC_GAIN               (0.001) //(0.0005) //was (0.001) //AR0.0015
-#define DSP_LPF_FC                  (700) //(was (700)
+#define DSP_LPF_FC                  (350) //(was (700)
 #define DSP_LPF_ORDER               (50) //was (50)
 
 unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
@@ -82,6 +82,8 @@ int main(int argc, char **argv)
    double *filterCoeffs=NULL, *waveDataTime=NULL;
    double complex *waveData=NULL;
 
+   double dspManchesterResyncLevel = DSP_MCHSTR_RESYNC_LVL;
+   double dspMaxCarrierDeviation = DSP_MAX_CARRIER_DEVIATION;
 
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
    int nFrames=0, totalFrames=0,c;
@@ -94,7 +96,7 @@ int main(int argc, char **argv)
    //const char *build_date = __DATE__;
    printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
 
-   while ((c = getopt (argc, argv, "rn:c:")) != -1)
+   while ((c = getopt (argc, argv, "rd:m:n:c:")) != -1)
       {
       switch (c)
          {
@@ -102,10 +104,28 @@ int main(int argc, char **argv)
             outputRawFiles = 1;
             printf("Outputting Debugging Raw Files\n");
             break;
+         case 'd':
+            if(optarg == NULL)
+               {
+               printf("DSP Maximum Carrier Deviation unspecified");
+               return 1;
+               }
+            dspMaxCarrierDeviation = atof(optarg);
+            printf("DSP Maximum Carrier Deviation Override %f\n",dspMaxCarrierDeviation);
+            break;
+         case 'm':
+            if(optarg == NULL)
+               {
+               printf("DSP Manchester Resync Level unspecified");
+               return 1;
+               }
+            dspManchesterResyncLevel = atof(optarg);
+            printf("DSP Manchester Resync Level Override %f\n",dspManchesterResyncLevel);
+            break;
          case 'n':
             if(optarg == NULL)
                {
-               printf("Static gain unspecified");
+               printf("Static Gain unspecified");
                return 1;
                }
             normFactor = atof(optarg);
@@ -121,7 +141,7 @@ int main(int argc, char **argv)
             printf("Using %ld chunkSize\n",chunkSize);
             break;
          case '?':
-            if (optopt == 'c' || optopt == 'n')
+            if (optopt == 'c' || optopt == 'n' || optopt == 'd' || optopt == 'm')
                fprintf (stderr, "Option -%c requires an argument.\n", optopt);
             else if (isprint (optopt))
                fprintf (stderr, "Unknown option `-%c'.\n", optopt);
@@ -216,11 +236,16 @@ int main(int argc, char **argv)
 
    printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
 
+   //printHeaderInfo(header);
+
    MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs, 1);
 
    while(!feof(inFilePtr))
       {
       nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
+
+      //if(outputRawFiles == 1) fwrite(waveData, sizeof(double), nSamples, rawOutFilePtr);
+      //if(outputRawFiles == 1) fwrite(waveDataTime, sizeof(double), nSamples, rawOutFilePtr);
 
       if(i == 0 && normFactor == 0)
          {
@@ -233,26 +258,46 @@ int main(int argc, char **argv)
 
       NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN);
 
-      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
+      //if(outputRawFiles == 1) fwrite(waveData, sizeof(double), nSamples, rawOutFilePtr);
+
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, dspMaxCarrierDeviation, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
+
+      //if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
+      //if(outputRawFiles == 1) fwrite(lockSignalStream, sizeof(double), nSamples, rawOutFilePtr);
+
       (void)averagePhase;
+
       LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);
+
+      //if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
+
       NormalizingAGC(dataStreamReal, nSamples, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
 
-      if(outputRawFiles == 1)
-         fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
+      //if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
 
       Squelch(dataStreamReal, lockSignalStream, nSamples, DSP_SQLCH_THRESH);
+
+      if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
+
       //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 3, 0.15);
       nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
 
-      //fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
+      //if(outputRawFiles == 1) fwrite(dataStreamSymbols, sizeof(double), nSamples, rawOutFilePtr);
 
-      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
+      //nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
+      nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, dspManchesterResyncLevel);
+
+      //if(outputRawFiles == 1) fwrite(dataStreamSymbols, sizeof(double), nSamples, rawOutFilePtr);
+
+      // if(outputRawFiles == 1)
+      // {
+      //   for(idx=0; idx < nBits; idx++)
+      //      {
+      //      fwrite(&dataStreamBits[idx],sizeof(char),1,rawOutFilePtr);
+      //      }
+      // }
 
       // There's no need to invert the data. FindSyncWords automatically checks for the sync word and its inverse.
-
-      // fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr);
-      //nFrames = FindSyncWords(dataStreamBits, waveDataTime, nBits, "0001011110000", 13, minorFrameFile);
 
       // ARGOS 4 PTT-VLD-A4 A4-SS-TER-SP-0079-CNES defines a sync pattern of 0xAC5353
       nFrames = FindSyncWords(dataStreamBits, waveDataTime, nBits, "101011000101001101010011", 24, minorFrameFile);
@@ -265,18 +310,10 @@ int main(int argc, char **argv)
          {
          percentComplete = ((double)( i) / num_samples)*100.0;
          printf("\r");
-         //printf("\n");
-         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Packets", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
+         printf("\n");
+         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Packets  ", ((double)( i) / num_samples)*100.0, (totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
          }
 
-
-      /*for(idx=0; idx < nSamples; idx++)
-         {
-         fVal = (crealf(waveData[i]));
-         fwrite(&fVal,sizeof(fVal),1,rawOutFilePtr);
-         fVal = (cimagf(waveData[i]));
-         fwrite(&fVal,sizeof(fVal),1,rawOutFilePtr);
-         }*/
       }
 
    //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
