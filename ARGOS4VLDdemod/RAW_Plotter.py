@@ -1,4 +1,4 @@
-# This code plots the 32-bit signed (?) data in the RAW
+# This code plots the 32-bit double data in the RAW
 # file produced by Nebarnix's ARGOS Demodulator
 
 import matplotlib

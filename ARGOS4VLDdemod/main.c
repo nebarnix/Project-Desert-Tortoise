@@ -23,7 +23,7 @@
 
 #define DSP_MAX_CARRIER_DEVIATION   (250.0) //was (550.0)
 
-#define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+#define DSP_PLL_LOCK_THRESH         (0.5) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
 #define DSP_PLL_LOCK_ALPHA          (0.004)
 #define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015)
 #define DSP_PLL_TRCK_GAIN           (0.015) // 0.0015 //was (0.015)
@@ -32,7 +32,7 @@
 #define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (200*2) //was (400*2) // ARGOS 4 PTT-VLD-A4 (A4-SS-TER-SP-0079-CNES) is 200bps
-#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
+#define DSP_MCHSTR_RESYNC_LVL       (1.0) //was (0.5)
 #define DSP_AGC_ATCK_RATE           (1e-1) //was (1e-1) //(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
 #define DSP_AGC_DCY_RATE            (2e-1) // was (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv)
     filterCoeffs == NULL ||
     inFileName == NULL ||
     waveDataTime == NULL ||
-    waveData  == NULL ||
+    waveData == NULL ||
     dataStreamReal == NULL ||
     lockSignalStream == NULL ||
     dataStreamSymbols  == NULL)
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
 
   printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
 
-  printHeaderInfo(header);
+  //printHeaderInfo(header);
 
   MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs, 1);
 
@@ -247,13 +247,13 @@ int main(int argc, char **argv)
     // Calculate the normalization factor based on the whole file - not just the first chunk (in case it is quiet)
     normFactor = 1000000;
     while(!feof(inFilePtr))
-    {
-    nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
-    double chunkNormFactor = StaticGain(waveData, nSamples, 1.0);
-    if(chunkNormFactor < normFactor)
       {
-      normFactor = chunkNormFactor;
-      }
+      nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
+      double chunkNormFactor = StaticGain(waveData, nSamples, 1.0);
+      if(chunkNormFactor < normFactor)
+        {
+        normFactor = chunkNormFactor;
+        }
       }
     printf("Normalization Factor: %f\n",normFactor);
   }
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 
     NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN);
 
-    if(outputRawFiles == 1) fwrite(waveData, sizeof(double), nSamples, rawOutFilePtr);
+    //if(outputRawFiles == 1) fwrite(waveData, sizeof(double), nSamples, rawOutFilePtr);
 
     averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, dspMaxCarrierDeviation, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
 
@@ -298,25 +298,29 @@ int main(int argc, char **argv)
 
     Squelch(dataStreamReal, lockSignalStream, nSamples, DSP_SQLCH_THRESH);
 
-    if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
+    //if(outputRawFiles == 1) fwrite(dataStreamReal, sizeof(double), nSamples, rawOutFilePtr);
 
     //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 3, 0.15);
     nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
 
-    //if(outputRawFiles == 1) fwrite(dataStreamSymbols, sizeof(double), nSamples, rawOutFilePtr);
+    if(outputRawFiles == 1)
+      {
+      for(idx=0; idx < nSymbols; idx++)
+        {
+        fwrite(&dataStreamSymbols[idx],sizeof(double),1,rawOutFilePtr);
+        }
+      }
 
     //nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
     nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, dspManchesterResyncLevel);
 
-    //if(outputRawFiles == 1) fwrite(dataStreamSymbols, sizeof(double), nSamples, rawOutFilePtr);
-
     // if(outputRawFiles == 1)
-    //  {
-    //  for(idx=0; idx < nBits; idx++)
-    //    {
-    //    fwrite(&dataStreamBits[idx],sizeof(char),1,rawOutFilePtr);
-    //    }
-    //  }
+    //   {
+    //   for(idx=0; idx < nBits; idx++)
+    //     {
+    //     fwrite(&dataStreamBits[idx],sizeof(char),1,rawOutFilePtr);
+    //     }
+    //   }
 
     // There's no need to invert the data. FindSyncWords automatically checks for the sync word and its inverse.
 
