@@ -32,7 +32,7 @@
 #define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (200*2) //was (400*2) // ARGOS 4 PTT-VLD-A4 (A4-SS-TER-SP-0079-CNES) is 200bps
-#define DSP_MCHSTR_RESYNC_LVL       (1.0) //was (0.5)
+#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
 #define DSP_AGC_ATCK_RATE           (1e-1) //was (1e-1) //(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
 #define DSP_AGC_DCY_RATE            (2e-1) // was (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
 
@@ -236,9 +236,29 @@ int main(int argc, char **argv)
 
    printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
 
-   //printHeaderInfo(header);
+   printHeaderInfo(header);
 
    MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs, 1);
+
+   long filePos = ftell(inFilePtr); // Store the file position
+
+   if (normFactor == 0) // If the user has not overridden the static gain (normalization factor)
+   {
+     // Calculate the normalization factor based on the whole file - not just the first chunk (in case it is quiet)
+     normFactor = 1000000;
+     while(!feof(inFilePtr))
+        {
+        nSamples = GetComplexWaveChunk(inFilePtr, header, waveData, waveDataTime, chunkSize);
+        double chunkNormFactor = StaticGain(waveData, nSamples, 1.0);
+        if(chunkNormFactor < normFactor)
+           {
+           normFactor = chunkNormFactor;
+           }
+         }
+      printf("Normalization Factor: %f\n",normFactor);
+   }
+
+   fseek(inFilePtr, filePos, SEEK_SET); // Rewind the file
 
    while(!feof(inFilePtr))
       {
@@ -249,6 +269,7 @@ int main(int argc, char **argv)
 
       if(i == 0 && normFactor == 0)
          {
+         // Calculate the static gain (normalization factor) based on the first chunk
          normFactor = StaticGain(waveData, nSamples, 1.0);
          //normFactor = 1;
          printf("Normalization Factor: %f\n",normFactor);
