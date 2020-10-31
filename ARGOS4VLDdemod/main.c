@@ -86,7 +86,7 @@ int main(int argc, char **argv)
   double dspMaxCarrierDeviation = DSP_MAX_CARRIER_DEVIATION;
 
   //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
-  int nFrames=0, totalFrames=0,c;
+  int nFrames=0, totalFrames=0, c;
 
   unsigned char *dataStreamBits=NULL;
   char *inFileName=NULL;
@@ -303,24 +303,24 @@ int main(int argc, char **argv)
     //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 3, 0.15);
     nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
 
-    if(outputRawFiles == 1)
-      {
-      for(idx=0; idx < nSymbols; idx++)
-        {
-        fwrite(&dataStreamSymbols[idx],sizeof(double),1,rawOutFilePtr);
-        }
-      }
+    // if(outputRawFiles == 1)
+    //   {
+    //   for(idx=0; idx < nSymbols; idx++)
+    //     {
+    //     fwrite(&dataStreamSymbols[idx],sizeof(double),1,rawOutFilePtr);
+    //     }
+    //   }
 
     //nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
     nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, dspManchesterResyncLevel);
 
-    // if(outputRawFiles == 1)
-    //   {
-    //   for(idx=0; idx < nBits; idx++)
-    //     {
-    //     fwrite(&dataStreamBits[idx],sizeof(char),1,rawOutFilePtr);
-    //     }
-    //   }
+    if(outputRawFiles == 1)
+      {
+      for(idx=0; idx < nBits; idx++)
+        {
+        fwrite(&dataStreamBits[idx],sizeof(char),1,rawOutFilePtr);
+        }
+      }
 
     // There's no need to invert the data. FindSyncWords automatically checks for the sync word and its inverse.
 

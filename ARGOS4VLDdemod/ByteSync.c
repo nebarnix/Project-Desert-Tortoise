@@ -21,10 +21,10 @@ int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned 
    static int oldest = 0, syncIndicator, frameByteIdx, packetShiftFlag=0, bitIdx;
    static unsigned char zero=0, one=1;
    static unsigned char byte=0;
-   
+
    int packetsFound=0;
    unsigned long idx;
-   
+
    if(firstTime == 1)
       {
       firstTime = 0;
@@ -37,26 +37,26 @@ int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned 
             }
       memset(historyBufferCirc, 48, sizeof(char) * syncWordLength);
       }
-   
+
    //loop through samples
-   
+
    for(idx = 0; idx < nSamples; idx++)
       {
       //Enter this loop if we found a syncword last time around
       if(packetShiftFlag == 1)
          {
-         if(bitStreamIn[idx]=='0')     
+         if(bitStreamIn[idx]=='0')
             {
             byte = byte << 1; //This is a  zero, just shift
             byte = byte | zero;
             }
          else
             {
-            byte = byte << 1; //This is a one, set the bit then shift               
+            byte = byte << 1; //This is a one, set the bit then shift
             byte = byte | one;
             }
-         
-         bitIdx++;   
+
+         bitIdx++;
          if(bitIdx > 7)
             {
             //minorFrame[frameByteIdx]=byte;
@@ -65,40 +65,40 @@ int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned 
             byte = 0;
             bitIdx = 0;
             frameByteIdx++;
-            if(frameByteIdx > 8)
+            if(frameByteIdx > 24)
                {
                packetShiftFlag = 0;
                fprintf(packetFile,"\n");
                printf("\n");
                }
             }
-         }  
-      
-      //overwrite oldest bit in cir buffer with newest bit   
-      historyBufferCirc[oldest] = bitStreamIn[idx];       
+         }
+
+      //overwrite oldest bit in cir buffer with newest bit
+      historyBufferCirc[oldest] = bitStreamIn[idx];
       //printf("h[%d]=%c\n",oldest, historyBufferCirc[oldest]);
-      
-       
-      syncIndicator = 1; //set to 1 to enable, any other to disable  
-         
-      //Look for syncword      
-      for (idx2 = 0; idx2 < syncWordLength; idx2++) 
+
+
+      syncIndicator = 1; //set to 1 to enable, any other to disable
+
+      //Look for syncword
+      for (idx2 = 0; idx2 < syncWordLength; idx2++)
          {
          //compare syncword bytes to appropriate circular buffer bytes
-         
+
          if (syncWord[idx2] != historyBufferCirc[(oldest + idx2 + 1) % syncWordLength])
             {
             syncIndicator = 0;
             break;
             }
          }
-         
+
       if(syncIndicator == 1 && packetShiftFlag == 0)
          {
          fprintf(packetFile,"%.5f ",bitStreamInTime[idx]);
          //fprintf(packetFile,"%.2X ",0b11100010);
          //fprintf(packetFile,"%.2X ",0b11110000);
-         
+
          printf("%.5f ",bitStreamInTime[idx]);
          frameByteIdx = 2;
          packetShiftFlag = 1;
@@ -108,29 +108,29 @@ int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned 
          zero = 0;
          one = 1;
          //bitIdx=;
-         }       
-         
+         }
+
       //Look for Inverse Syncword
-      syncIndicator = 0; //set to 1 to enable, any other to disable
-      for (idx2 = 0; idx2 < syncWordLength; idx2++) 
+      syncIndicator = 1; //set to 1 to enable, any other to disable
+      for (idx2 = 0; idx2 < syncWordLength; idx2++)
          {
          //compare syncword bytes to appropriate circular buffer bytes
          //printf("sw[%d] == hst[%d] , %c == %c, ", idx2,(oldest + idx2 + 1) % syncWordLength,syncWord[idx2],historyBufferCirc[(oldest + idx2) % syncWordLength]);
-         
+
          if (syncWord[idx2] == historyBufferCirc[(oldest + idx2 + 1) % syncWordLength])
             {
             syncIndicator = 0;
             //printf("NO\n\n");
             break;
-            }         
+            }
          }
-         
+
       if(syncIndicator == 1 && packetShiftFlag == 0)
          {
          fprintf(packetFile,"%.5fi ",bitStreamInTime[idx]);
          //fprintf(packetFile,"%.2X ",0b11100010);
          //fprintf(packetFile,"%.2X ",0b11110000);
-         
+
          printf("\t%.5fi ",bitStreamInTime[idx]);
          frameByteIdx = 2;
          packetShiftFlag = 1;
@@ -140,10 +140,10 @@ int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned 
          zero = 1;
          one = 0;
          //bitIdx=;
-         }           
-     
-      //advance oldest bit pointer   
+         }
+
+      //advance oldest bit pointer
       oldest = (oldest + 1) % syncWordLength;
       }
-   return packetsFound;   
+   return packetsFound;
    }

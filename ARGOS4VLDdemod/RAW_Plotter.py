@@ -38,7 +38,7 @@ with open(sys.argv[1], "rb") as reader:
             break
 
 fig, ax = plt.subplots()
-ax.plot(x, y)
+ax.plot(x, y, 'o-')
 
 ax.set(xlabel='sample', ylabel='signal',
        title=sys.argv[1])
