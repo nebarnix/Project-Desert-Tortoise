@@ -13,7 +13,7 @@
    printf("%d bits and %d Frames\n",strlen(dataStreamBits), numFrames);
    }*/
 
-int FindSyncWords(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *packetFile)
+int FindSyncWords(unsigned char *bitStreamIn, DECIMAL_TYPE *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *packetFile)
    {
    int idx2;
    static char firstTime = 1;
