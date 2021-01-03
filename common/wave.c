@@ -49,14 +49,14 @@ void printHeaderInfo(HEADER header)
    printf("Size of each channel:%d bytes\n", bytes_in_each_channel);
    
    // calculate duration of file
-   double duration_in_seconds = (double) header.overall_size / header.byterate;
+   DECIMAL_TYPE duration_in_seconds = (DECIMAL_TYPE) header.overall_size / header.byterate;
    printf("Approx.Duration in seconds=%f\n", duration_in_seconds);
    printf("Approx.Duration in h:m:s=%s\n", seconds_to_time(duration_in_seconds));   
    }
 
 //Read nSamples of complex data from the wave file and store in array. Actual number of returned bytes is returned as an integer.
 //Advances file pointer, ready to read more new samples
-int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples)
+unsigned long int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, DECIMAL_TYPE complex* waveData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples)
    {
    //Check to make sure file is actually ready for reading
    if (waveFilePtr == NULL)
@@ -83,17 +83,18 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
    
    long i =0;
    long size_of_each_sample = (header.channels * header.bits_per_sample) / 8;
-   long double maxsize=0;
-   unsigned char data_buffer[size_of_each_sample];
+   //long double maxsize=0;
+   DECIMAL_TYPE maxsize=0;
+   unsigned char *data_buffer;
+   unsigned char chunk_buffer[size_of_each_sample * nSamples];
    int  size_is_correct = TRUE;
-   int read;
-   static double time=0, Ts=0;
-   double realVal, imagVal;
+   static DECIMAL_TYPE time=0, Ts=-1;
+   DECIMAL_TYPE realVal, imagVal;
    int16_t data_in_channel = 0;
    //int data_in_channel = 0;
    
-   if(Ts == 0)
-      Ts = 1.0/(double)header.sample_rate;
+   if(Ts < 0)
+      Ts = 1.0/(DECIMAL_TYPE)header.sample_rate;
    
    // make sure that the bytes-per-sample is completely divisible by num.of channels
    long bytes_in_each_channel = (size_of_each_sample / header.channels);
@@ -121,63 +122,175 @@ int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveDa
                maxsize = 2147483648LL;
                break;
             }
-            
+      
+      nSamples = fread(chunk_buffer, size_of_each_sample, nSamples, waveFilePtr); //this is really slow. We need to fread CHUNKS of data not just one sample at a time!      
       for (i =0; i < nSamples; i++) 
          {
-         //printf("==========Sample %ld / %ld=============\n", i, nSamples   );
-         read = fread(data_buffer, sizeof(data_buffer), 1, waveFilePtr);
-         if (read == 1) 
-            {            
-            // dump the data read
-            unsigned int  xchannels = 0;
-            
-            
-            for (xchannels = 0; xchannels < header.channels; xchannels ++ ) 
-               {
-               //printf("Channel#%d : ", (xchannels+1));
-               // convert data from little endian to big endian based on bytes in each channel sample
-               if (bytes_in_each_channel == 4) 
-                  {
-                  //data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
-                  data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | 
-                                    (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
-                                    (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
-                                    (data_buffer[xchannels*bytes_in_each_channel+3] << 24);
-                  //data_in_channel = data_in_channel / 2147483648.0; //normalize
-                  }                                               
-               else if (bytes_in_each_channel == 2) 
-                  {
-                  data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | (data_buffer[xchannels*bytes_in_each_channel+1] << 8);
-                  //data_in_channel = data_in_channel / 32768.0; //normalize
-                  }
-               else if (bytes_in_each_channel == 1) 
-                  {
-                  data_in_channel = data_buffer[0];
-                  //data_in_channel = data_in_channel / 128.0; //normalize
-                  }               
-               
-               //return normalized complex data
-               if(xchannels == 0) //Real channel is first
-                  {
-                  realVal =  data_in_channel/maxsize;                  
-                  }
-               else //Imaginary channel is second
-                  {
-                  imagVal = data_in_channel/maxsize;                  
-                  waveData[i] = realVal + imagVal * I;
-                  time += Ts;
-                  waveDataTime[i] = time;
-                  //waveData[i] = imagVal + realVal * I;
-                  }
-               }
-            
-            //printf("\n");
-            }
-         else 
+         data_buffer = chunk_buffer+(size_of_each_sample*i);
+                     
+         // dump the data read
+         unsigned int  xchannels = 0;         
+         
+         for (xchannels = 0; xchannels < header.channels; xchannels ++ ) 
             {
-            //EOF!           
-            return i;
-            }            
+            //printf("Channel#%d : ", (xchannels+1));
+            // convert data from little endian to big endian based on bytes in each channel sample
+            if (bytes_in_each_channel == 4) 
+               {
+               //data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
+               data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | 
+                                 (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
+                                 (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
+                                 (data_buffer[xchannels*bytes_in_each_channel+3] << 24);
+               //data_in_channel = data_in_channel / 2147483648.0; //normalize
+               }                                               
+            else if (bytes_in_each_channel == 2) 
+               {
+               data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | (data_buffer[xchannels*bytes_in_each_channel+1] << 8);
+               //data_in_channel = data_in_channel / 32768.0; //normalize
+               }
+            else if (bytes_in_each_channel == 1) 
+               {
+               data_in_channel = data_buffer[0];
+               //data_in_channel = data_in_channel / 128.0; //normalize
+               }               
+            
+            //return normalized complex data
+            if(xchannels == 0) //Real channel is first
+               {
+               realVal =  data_in_channel/maxsize;                  
+               }
+            else //Imaginary channel is second
+               {
+               imagVal = data_in_channel/maxsize;                  
+               waveData[i] = realVal + imagVal * I;
+               time += Ts;
+               waveDataTime[i] = time;
+               //waveData[i] = imagVal + realVal * I;
+               }
+            } //   for (xchannels = 0; xchannels < header.channels; xchannels ++ )
+         } //    for (i =1; i <= nSamples; i++) {         
+      } //    if (size_is_correct) {         
+   return nSamples;
+   }
+
+//Read nSamples of complex data from the wave file and store in array. Actual number of returned bytes is returned as an integer.
+//Advances file pointer, ready to read more new samples
+//This was written to compare execution speed of complex numbers to that of just passing real and imaginary parts. There was no notable difference during benchmarking. 
+unsigned long int GetIQWaveChunk(FILE *waveFilePtr, HEADER header, DECIMAL_TYPE *IData, DECIMAL_TYPE *QData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples)
+{
+   //Check to make sure file is actually ready for reading
+   if (waveFilePtr == NULL)
+      {
+      printf("Error opening file\n");
+      exit(1);
+      }
+   if ( QData == NULL || IData == NULL || waveDataTime == NULL)
+      {
+      printf("Dude, allocate your fracking memory already. UGH. \n");
+      exit(1);
+      }  
+   if(header.channels != 2)
+      {
+      printf("Complex read requires 2 channels (I and Q)\n");
+      exit(1);
+      }
+   // read each sample from data chunk if PCM
+   if (header.format_type != 1)
+      {
+      printf("Only PCM is currently supported :(\n");
+      exit(1);
+      } 
+   
+   long i =0;
+   long size_of_each_sample = (header.channels * header.bits_per_sample) / 8;
+   long double maxsize=0;
+   unsigned char *data_buffer;
+   unsigned char chunk_buffer[size_of_each_sample * nSamples];
+   int  size_is_correct = TRUE;
+   static DECIMAL_TYPE time=0, Ts=-1;
+   DECIMAL_TYPE realVal, imagVal;
+   int16_t data_in_channel = 0;
+   //int data_in_channel = 0;
+   
+   if(Ts < 0)
+      Ts = 1.0/(DECIMAL_TYPE)header.sample_rate;
+   
+   // make sure that the bytes-per-sample is completely divisible by num.of channels
+   long bytes_in_each_channel = (size_of_each_sample / header.channels);
+   if ((bytes_in_each_channel  * header.channels) != size_of_each_sample)
+      {
+      printf("Error: %ld x %ud <> %ld\n", bytes_in_each_channel, header.channels, size_of_each_sample);
+      size_is_correct = FALSE;
+      }
+   
+   if (size_is_correct) 
+      {
+      switch (header.bits_per_sample)
+            {
+            case 8:
+               maxsize = 128;
+               break;
+               
+            case 16:
+               
+               maxsize = 32768;
+               break;
+               
+            case 32:
+               
+               maxsize = 2147483648LL;
+               break;
+            }
+      
+      nSamples = fread(chunk_buffer, size_of_each_sample, nSamples, waveFilePtr); //this is really slow. We need to fread CHUNKS of data not just one sample at a time!      
+      for (i =0; i < nSamples; i++) 
+         {
+         data_buffer = chunk_buffer+(size_of_each_sample*i);           
+         // dump the data read
+         unsigned int  xchannels = 0;
+         
+         
+         for (xchannels = 0; xchannels < header.channels; xchannels ++ ) 
+            {
+            //printf("Channel#%d : ", (xchannels+1));
+            // convert data from little endian to big endian based on bytes in each channel sample
+            if (bytes_in_each_channel == 4) 
+               {
+               //data_in_channel =   data_buffer[0] | (data_buffer[1]<<8) | (data_buffer[2]<<16) | (data_buffer[3]<<24);
+               data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | 
+                                 (data_buffer[xchannels*bytes_in_each_channel+1] << 8) |
+                                 (data_buffer[xchannels*bytes_in_each_channel+2] << 16) |
+                                 (data_buffer[xchannels*bytes_in_each_channel+3] << 24);
+               //data_in_channel = data_in_channel / 2147483648.0; //normalize
+               }                                               
+            else if (bytes_in_each_channel == 2) 
+               {
+               data_in_channel = data_buffer[xchannels*bytes_in_each_channel+0] | (data_buffer[xchannels*bytes_in_each_channel+1] << 8);
+               //data_in_channel = data_in_channel / 32768.0; //normalize
+               }
+            else if (bytes_in_each_channel == 1) 
+               {
+               data_in_channel = data_buffer[0];
+               //data_in_channel = data_in_channel / 128.0; //normalize
+               }               
+            
+            //return normalized complex data
+            if(xchannels == 0) //Real channel is first
+               {
+               realVal =  data_in_channel/maxsize;                  
+               }
+            else //Imaginary channel is second
+               {
+               imagVal = data_in_channel/maxsize;                  
+               //waveData[i] = realVal + imagVal * I;
+               IData[i] = realVal;
+               QData[i] = imagVal;
+               time += Ts;
+               waveDataTime[i] = time;
+               //waveData[i] = imagVal + realVal * I;
+               }
+            } //    for (xchannels = 0; xchannels < header.channels; xchannels ++ )           
          } //    for (i =1; i <= nSamples; i++) {         
       } //    if (size_is_correct) {         
    return nSamples;
@@ -270,7 +383,7 @@ HEADER ReadWavHeader(FILE *waveFilePtr)
  *  seconds - seconds value
  * Returns: hms - formatted string
  **/
-char* seconds_to_time(double raw_seconds)
+char* seconds_to_time(DECIMAL_TYPE raw_seconds)
    {
    char *hms;
    int hours, hours_residue, minutes, seconds, milliseconds;
@@ -297,7 +410,7 @@ char* seconds_to_time(double raw_seconds)
    return hms;
    }
   
-int GetComplexRawChunk(FILE *rawFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples)
+unsigned long int GetComplexRawChunk(FILE *rawFilePtr, HEADER header, DECIMAL_TYPE complex* waveData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples)
 {
 //we *will* use header, with some predefined assumptions about your RAW file. Make sure those things are filled out before passing it!
    if(header.channels != 2)
@@ -323,13 +436,13 @@ int GetComplexRawChunk(FILE *rawFilePtr, HEADER header, double complex* waveData
    int  size_is_correct = TRUE;
    int read;
    float *floatVal;
-   static double time=0, Ts=0;
-   double realVal, imagVal;
+   static DECIMAL_TYPE time=0, Ts=0;
+   DECIMAL_TYPE realVal, imagVal;
    //int16_t data_in_channel = 0;
    int32_t data_in_channel = 0; //override from wavelib using RAW because RAW is always 32-bit float (for now, unless someone needs it to be different)
    
    if(Ts == 0)
-      Ts = 1.0/(double)header.sample_rate;
+      Ts = 1.0/(DECIMAL_TYPE)header.sample_rate;
    
    // make sure that the bytes-per-sample is completely divisible by num.of channels
    long bytes_in_each_channel = (size_of_each_sample / header.channels);

@@ -1,5 +1,5 @@
 #ifndef GARDENERCLOCKRECOVERY_H
 #define GARDENERCLOCKRECOVERY_H
-unsigned long GardenerClockRecovery(double *dataStreamIn,double *dataStreamInTime, unsigned long numSamples, double *dataStreamOut, int Fs, double baud, double stepRange, double kp);
+unsigned long GardenerClockRecovery(DECIMAL_TYPE *dataStreamIn, DECIMAL_TYPE *dataStreamInTime, unsigned long numSamples, DECIMAL_TYPE *dataStreamOut, int Fs, DECIMAL_TYPE baud, DECIMAL_TYPE stepRange, DECIMAL_TYPE kp);
 
 #endif
