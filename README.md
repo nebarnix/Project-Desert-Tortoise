@@ -21,29 +21,31 @@ Todo in decreasing order of importance:
 - [ ] Add bytesync back into common libs with separate functions for POES and ARGOS
 - [X] Add the rest of the processing chain -- See the https://github.com/nebarnix/PDT-TelemetryExplorer repo!!
 - [X] Add a gui to make pretty things happen in realtime -- See above except its not really in realtime so nevermind but whatever.
-- [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording?)
+- [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording?) This is now a priority for SATNOGS recordings
+
+# POES demodulator 
+- Spits out data to minorframes_{datetime}.txt. 
+- Takes in an IQ wav file (>50Ksps if the center frequency was not tracked during recording)
+- Works better than using an audio pipe
 
 # POES demodulator using port audio
 - Spits out data to minorframes_{datetime}.txt. 
 - Takes in RAW I/Q audio from sdr# (32khz, unity gain, RAW mode) or similar. 
-- Works! [NEW!]
+- Not as good as processing wav files, but can be done in realtime
 
 # ARGOS demodulator
 - Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
 - Spits out packets to packets.txt. 
-- Takes in wave files. 
-- Mostly works! (NEW!)
+- Takes in .wav files. 
 - TODO
-- [ ] Add support for RAW data files
 - [ ] Add support for real data input
-- [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
+- [ ] Append Quality/SNR for triangulation
 
 # ARGOS demodulator using port audio
 - Demodulates 401.65Mhz transmissions from ground transmitters to POES satellites
 - Spits out packets to packets.txt. 
-- Takes in RAW I/Q audio from sdr# or similar (32khz, unity gain, RAW mode) . 
-- Mostly works! (NEW!)
+- Takes in RAW I/Q audio from sdr# or similar (32khz, unity gain, RAW mode). 
 - TODO
 - [ ] Add UTC timestamps for ARGOS realtime packets
 - [ ] Add support for real data input
-- [ ] Figure out how to calculate Signal to Noise Ratio which is important for triangulation
+- [ ] Append Quality/SNR for triangulation
