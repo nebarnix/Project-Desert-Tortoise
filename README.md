@@ -6,7 +6,7 @@ See the background of this project here
 http://wiki.nebarnix.com/wiki/NOAA_POES_TIP_Demodulation
 
 Attribution:
-DSP code for the M&M Clock Recovery and Carrier Tracking PLL adapted from GNURADIO source.
+DSP code for the Gardner Clock Recovery based on M&M Clock Recovery. That and the Carrier Tracking PLL adapted from GNURADIO source.
 Wave file format parser adapted from http://truelogic.org/wordpress/2015/09/04/parsing-a-wav-file-in-c/ 
 
 Todo in decreasing order of importance:
