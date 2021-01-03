@@ -20,7 +20,7 @@ Todo in decreasing order of importance:
 - [X] Add support for reading and writing RAW data files. Need to write read support
 - [ ] Add bytesync back into common libs with separate functions for POES and ARGOS
 - [X] Add the rest of the processing chain -- See the https://github.com/nebarnix/PDT-TelemetryExplorer repo!!
-- [X] Add a gui to make pretty things happen in realtime -- See above except its not really in realtime so nevermind but whatever.
+- [ ] Add a gui to make pretty things happen in realtime (constellation, quality bar graph, pretty waterfall, PLL controls etc)
 - [ ] Add hilbert transform to allow for real data input (large bandwidth USB or LSB recording?) This is now a priority for SATNOGS recordings
 
 # POES demodulator 
