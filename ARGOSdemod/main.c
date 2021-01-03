@@ -5,40 +5,64 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-#include <math.h>
+#include <tgmath.h>
 #include <time.h>
 #include <conio.h>
+
+#include "config.h" //float vs double and terminal type set here
+
+//#include "../common/metadata.h"
 #include "../common/wave.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
 #include "../common/LowPassFilter.h"
-//#include "../common/MMClockRecovery.h"
+#include "../common/MMClockRecovery.h"
 #include "../common/GardenerClockRecovery.h"
 #include "../common/ManchesterDecode.h"
 #include "ByteSync.h"
 
 #define TRUE 1
 #define FALSE 0
-#define DEFAULT_CHUNKSIZE  (1000)
+
+#define DEFAULT_CHUNKSIZE  (2400)
+//small chunk sizes (<2000) lead to weird time axis problems AND (separately) buffer overflows!
+//TODO: Figure out what the heck small chunk sizes mess up
+//BUT we want chunk sizes under the minorframe time for meta tracking. 
+//There are 10 minor frames per second means chunks should be under Sample rate/10 or 4800
 
 #define DSP_MAX_CARRIER_DEVIATION   (550.0) //was (550.0)
 
-#define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
-#define DSP_PLL_LOCK_ALPHA          (0.004)
-#define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015) 
-#define DSP_PLL_TRCK_GAIN           (0.015) // 0.0015 //was (0.015)
-#define DSP_SQLCH_THRESH            (0.15) //was (0.25) //was (0.15) //AR0.3
+//new values have units of radians per second
+ //#define DSP_PLL_LOCK_THRESH         (0.1)      //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+ #define DSP_PLL_LOCK_ALPHA          (3.1831)   //(0.004) at 5khz
+ #define DSP_PLL_ACQ_GAIN            (16)     //0.0015 //was (0.015) at 5khz (16 decoded the best at 5khz) 
+ #define DSP_PLL_TRCK_GAIN           DSP_PLL_ACQ_GAIN       // 0.0015 //was (0.015) at 5khz
+// #define DSP_SQLCH_THRESH            (0.15)     //was (0.25) //was (0.15) //AR0.3 at 5khz
 
-#define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
-#define DSP_GDNR_GAIN               (3.0) //was 2.5
-#define DSP_BAUD                    (400*2)
-#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
-#define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
-#define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
 
-#define DSP_AGCC_GAIN               (0.001) //(0.0005) //was (0.001) //AR0.0015
+//old values, dependant on sample rate
+ #define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+// #define DSP_PLL_LOCK_ALPHA          (0.004)
+// #define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015) 
+// #define DSP_PLL_TRCK_GAIN           (0.015) // 0.0015 //was (0.015)
+ #define DSP_SQLCH_THRESH            (0.15) //was (0.25) //was (0.15) //AR0.3
+
+//new values have units of radians per second
+#define DSP_AGC_ATCK_RATE           (79.5775) //(1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+#define DSP_AGC_DCY_RATE            (159.1549) //(2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+//old values, dependant on sample rate
+//#define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+//#define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+
+//#define DSP_AGCC_GAIN               (0.001) //(0.0005) //was (0.001) //AR0.0015
+#define DSP_AGCC_GAIN               (0.7958) //(0.001) //(0.0005) //was (0.001) //AR0.0015
 #define DSP_LPF_FC                  (700) //(was (700)
 #define DSP_LPF_ORDER               (50) //was (50)
+
+#define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
+#define DSP_GDNR_GAIN               (3.0) //was 2.5 //was 3.0
+#define DSP_BAUD                    (400*2.0)
+#define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
 
 unsigned int CheckSum(unsigned char *dataStreamReal, unsigned long nSamples)
    {
@@ -73,14 +97,14 @@ int main(int argc, char **argv)
    
    unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, idx, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;
    
-   double *dataStreamReal=NULL, *dataStreamSymbols=NULL, *lockSignalStream=NULL;
-   double Fs;
-   double LPF_Fc;   
-   double averagePhase, percentComplete=0;
-   double normFactor=0;
+   DECIMAL_TYPE *dataStreamReal=NULL, *dataStreamSymbols=NULL, *lockSignalStream=NULL;
+   DECIMAL_TYPE Fs;
+   //DECIMAL_TYPE LPF_Fc;   
+   DECIMAL_TYPE averagePhase, percentComplete=0;
+   DECIMAL_TYPE normFactor=0;
    
-   double *filterCoeffs=NULL, *waveDataTime=NULL;
-   double complex *waveData=NULL;
+   DECIMAL_TYPE *filterCoeffs=NULL, *waveDataTime=NULL;
+   DECIMAL_TYPE complex *waveData=NULL;
    
    
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
@@ -92,7 +116,7 @@ int main(int argc, char **argv)
    char outputRawFiles=0;
    
    //const char *build_date = __DATE__;
-   printf("Project Desert Tortoise: Realtime ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
+   printf("Project Desert Tortoise: ARGOS Demodulator by Nebarnix.\nBuild date: %s\n",__DATE__);
    
    while ((c = getopt (argc, argv, "rn:c:")) != -1)
       {
@@ -118,32 +142,37 @@ int main(int argc, char **argv)
                return 1;
                }
             chunkSize = atoi(optarg);
-            printf("Using %ld chunkSize\n",chunkSize);
+            if(chunkSize != DEFAULT_CHUNKSIZE)
+               printf("Override: Using %ld chunkSize\n",chunkSize);
             break;
          case '?':
-            if (optopt == 'c' || optopt == 'n')
+            /*if (optopt == 'c' || optopt == 'n')
                fprintf (stderr, "Option -%c requires an argument.\n", optopt);
             else if (isprint (optopt))
                fprintf (stderr, "Unknown option `-%c'.\n", optopt);
             else
                fprintf (stderr,
                "Unknown option character `\\x%x'.\n",
-               optopt);
+               optopt);*/
+               fprintf (stderr, "-n <int> : set initial audio gain\n");   
+               fprintf (stderr, "-c <int> : set chunksize\n");
                return 1;
          default:
+            fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
             abort ();
          }
       }
-   //printf("Using %ld chunkSize\n",chunkSize);
+   if(chunkSize == DEFAULT_CHUNKSIZE)   
+      printf("Using default %ld chunkSize\n",chunkSize);
       
    //Allocate the memory we will need
-   filterCoeffs = malloc(sizeof(double) * DSP_LPF_ORDER);   
+   filterCoeffs = malloc(sizeof(DECIMAL_TYPE) * DSP_LPF_ORDER);   
    inFileName = (char*) malloc(sizeof(char) * 1024);      
-   waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);      
-   waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
-   dataStreamReal = (double*) malloc(sizeof(double) * chunkSize);
-   lockSignalStream = (double*) malloc(sizeof(double) * chunkSize);
-   dataStreamSymbols = (double*) malloc(sizeof(double) * chunkSize);   
+   waveData = (DECIMAL_TYPE complex*) malloc(sizeof(DECIMAL_TYPE complex) * chunkSize);      
+   waveDataTime   = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE ) * chunkSize);
+   dataStreamReal = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE ) * chunkSize);
+   lockSignalStream = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * chunkSize);
+   dataStreamSymbols = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * chunkSize);   
    dataStreamBits = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
    
    if (dataStreamBits == NULL || 
@@ -211,7 +240,7 @@ int main(int argc, char **argv)
    //else if(strcasecmp(get_filename_ext(inFileName),"raw") == 0)
      // header = ReadRawHeader(inFilePtr);
    
-   Fs = (double)header.sample_rate;
+   Fs = (DECIMAL_TYPE)header.sample_rate;
    long num_samples = (8 * header.data_size) / (header.channels * header.bits_per_sample);
    
    printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
@@ -231,21 +260,24 @@ int main(int argc, char **argv)
          
       i+=nSamples;
       
-      NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN);
+      //NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN*(2.0*M_PI/Fs));//this is no longer neccesary because the PLL is now normalizing
             
-      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
-      (void)averagePhase;      
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA*(2.0*M_PI/Fs), DSP_PLL_ACQ_GAIN*(2.0*M_PI/Fs), DSP_PLL_TRCK_GAIN*(2.0*M_PI/Fs));      
+      //make compiler shut up
+      (void)averagePhase;
       LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);      
-      NormalizingAGC(dataStreamReal, nSamples, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);      
+      
+      NormalizingAGC(dataStreamReal, nSamples,  normFactor, DSP_AGC_ATCK_RATE*(2.0*M_PI/Fs), DSP_AGC_DCY_RATE*(2.0*M_PI/Fs));
+      
       
       if(outputRawFiles == 1)
-         fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
+         fwrite(dataStreamReal, sizeof(DECIMAL_TYPE), nSamples,rawOutFilePtr);
       
       Squelch(dataStreamReal, lockSignalStream, nSamples, DSP_SQLCH_THRESH);
-      //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 3, 0.15);
+      //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, DSP_BAUD, 3, 0.15);
       nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
       
-      //fwrite(dataStreamReal, sizeof(double), nSamples,rawOutFilePtr);
+      //fwrite(dataStreamReal, sizeof(DECIMAL_TYPE), nSamples,rawOutFilePtr);
       
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
       // fwrite(dataStreamBits, sizeof(char), nBits,rawOutFilePtr);
@@ -255,12 +287,12 @@ int main(int argc, char **argv)
       totalFrames += nFrames;
       totalSymbols += nSymbols;
       totalSamples += nSamples;
-      if((((double)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(inFilePtr))
+      if((((DECIMAL_TYPE)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(inFilePtr))
          {
-         percentComplete = ((double)( i) / num_samples)*100.0;
+         percentComplete = ((DECIMAL_TYPE)( i) / num_samples)*100.0;
          printf("\r");
          //printf("\n");
-         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Packets", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
+         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Packets", ((DECIMAL_TYPE)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames);
          }
       
       
@@ -274,14 +306,21 @@ int main(int argc, char **argv)
       }
    
    //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
-   printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
+   //printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    if(outputRawFiles == 1)   
       fclose(rawOutFilePtr);
    
    if (fclose(inFilePtr)) { printf("error closing file."); exit(-1); }
    if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
-   
+
+   if(totalFrames == 0) 
+   {
+      printf("\n\nNone bits found :(\nRemoving output file and exiting.\nMAY YOU HAVE MORE BETTER BITS ANOTHER DAY\n");
+      remove(outFileName); //NO MORE ZERO SIZED FILE LITTER
+   }
+   else
+      printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    // cleanup before quitting
    free(inFileName);
