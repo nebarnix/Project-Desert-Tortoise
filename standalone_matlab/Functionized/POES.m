@@ -237,6 +237,30 @@ end
 %plot(bitor(bitshift(bitand(minorFrames(:,5),1),8),minorFrames(:,6))); %plot minor frame counter, which is annoyingly 9 bits long
 %plot(frameTime(:,5),bitor(bitshift(bitand(minorFrames(:,5),1),8),minorFrames(:,6)),'.');
 
+%% *BITSTREAM - load minorframes from txt file
+fid = fopen('minorFrames_20201104_214346.txt','rt');
+frameIdx=1;
+frameByteIdx=1;
+clear minorFrames frameTime;
+while true
+    thisLine = fgetl(fid);
+    if ~ischar(thisLine); break; end  %end of file       
+
+    %first, extract the timestamp at the start of the frame
+    frameTime(frameIdx,1) = sscanf(thisLine,'%f'); %scanf will skip anything after the first timestamp float
+    
+    %next find all of the spaces, they separate the hex values
+    spaces = strfind(thisLine,' ');
+    for frameByteIdx=1:numel(spaces)-1
+        %pull out the 2 characters after the space. sscanf will convert to dec
+        minorFrames(frameIdx,frameByteIdx) = sscanf(thisLine(spaces(frameByteIdx)+1:spaces(frameByteIdx)+3),'%x');
+        frameTime(frameIdx,1+frameByteIdx) = frameTime(frameIdx,1)+frameByteIdx*(0.1/104);
+    end
+    %break;
+    frameIdx = frameIdx+1;
+end
+fclose(fid);
+
 %% *BITSTREAM - Print Major Frame UTC times and spacecraft ID
 clear minorFrameID dayNum spacecraftID;
 minorFrameID = bitor(bitshift(bitand(minorFrames(:,5),1),8),minorFrames(:,6)); %pull out minor frame counter, which is annoyingly 9 bits long

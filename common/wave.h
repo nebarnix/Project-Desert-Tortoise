@@ -25,7 +25,8 @@ typedef struct HEADER
 
 void printHeaderInfo(HEADER header);
 HEADER ReadWavHeader(FILE *waveFilePtr);
-int GetComplexRawChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples); //I know, I know, its a bastardization of a wave library but hey....
-int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, double complex* waveData, double *waveDataTime, int nSamples);   
-char* seconds_to_time(double raw_seconds);
+unsigned long int GetComplexRawChunk(FILE *waveFilePtr, HEADER header, DECIMAL_TYPE complex* waveData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples); //I know, I know, its a bastardization of a wave library but hey....
+unsigned long int GetComplexWaveChunk(FILE *waveFilePtr, HEADER header, DECIMAL_TYPE complex* waveData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples);
+unsigned long int GetIQWaveChunk(FILE *waveFilePtr, HEADER header, DECIMAL_TYPE *IData, DECIMAL_TYPE *QData, DECIMAL_TYPE *waveDataTime, unsigned long int nSamples);
+char* seconds_to_time(DECIMAL_TYPE raw_seconds);
 #endif

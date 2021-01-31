@@ -1,9 +1,9 @@
 #ifndef AGC_H
 #define AGC_H
 
-double FindSignalAmplitude(double *dataStreamIn, unsigned long nSamples, double alpha);
-void Squelch(double *dataStream, double *squelchStreamIn, unsigned long nSamples, double squelchThreshold);
-double StaticGain(double complex *complexData,unsigned int nSamples,double desiredLevel);
-void NormalizingAGC(double *dataStreamIn, unsigned long nSamples, double attack_rate, double decay_rate);
-void NormalizingAGCC(double complex *dataStreamIn, unsigned long nSamples, double initial, double AGC_loop_gain);
+DECIMAL_TYPE FindSignalAmplitude(DECIMAL_TYPE *dataStreamIn, unsigned long nSamples, DECIMAL_TYPE alpha);
+void Squelch(DECIMAL_TYPE *dataStream, DECIMAL_TYPE *squelchStreamIn, unsigned long nSamples, DECIMAL_TYPE squelchThreshold);
+DECIMAL_TYPE StaticGain(DECIMAL_TYPE complex *complexData,unsigned int nSamples, DECIMAL_TYPE desiredLevel);
+void NormalizingAGC(DECIMAL_TYPE *dataStreamIn, unsigned long nSamples, DECIMAL_TYPE initial, DECIMAL_TYPE attack_rate, DECIMAL_TYPE decay_rate);
+void NormalizingAGCC(DECIMAL_TYPE complex *dataStreamIn, unsigned long nSamples, DECIMAL_TYPE initial, DECIMAL_TYPE AGC_loop_gain);
 #endif

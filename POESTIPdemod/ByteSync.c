@@ -13,7 +13,7 @@
    printf("%d bits and %d Frames\n",strlen(dataStreamBits), numFrames);
    }*/
 
-int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
+int ByteSyncOnSyncword(unsigned char *bitStreamIn, DECIMAL_TYPE *bitStreamInTime, unsigned long nSamples,  char *syncWord, unsigned int syncWordLength, FILE *minorFrameFile)
    {   
    static char firstTime = 1;
    static char *historyBufferCirc=NULL; //circular buffer
@@ -92,7 +92,11 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {         
-         fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
+         #if USE_FLOATS==1
+            fprintf(minorFrameFile,"%.5f ",bitStreamInTime[idx]);
+         #else
+            fprintf(minorFrameFile,"%.5lf ",bitStreamInTime[idx]);
+         #endif
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);         
          
@@ -122,7 +126,11 @@ int ByteSyncOnSyncword(unsigned char *bitStreamIn, double *bitStreamInTime, unsi
          
       if(syncIndicator == 1 && minorFrameShiftFlag == 0)
          {
-         fprintf(minorFrameFile,"%.5fi ",bitStreamInTime[idx]);
+         #if USE_FLOATS==1
+            fprintf(minorFrameFile,"%.5fi ",bitStreamInTime[idx]);
+         #else
+            fprintf(minorFrameFile,"%.5lfi ",bitStreamInTime[idx]);
+         #endif
          fprintf(minorFrameFile,"%.2X ",0b11101101);
          fprintf(minorFrameFile,"%.2X ",0b11100010);
          

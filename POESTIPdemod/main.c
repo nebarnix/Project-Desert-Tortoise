@@ -1,3 +1,7 @@
+//POES TIP telemetry demodulator - 135.350Mhz and 137.770Mhz
+//This version uses IQ data stored in a wav file 
+//Nebarnix 2020
+
 #include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -9,18 +13,14 @@
 #include <time.h>
 #include <conio.h>
 
-#if defined (__WIN32__)
-  #include <windows.h>
-  #ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
-     #define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
-  #endif
-#endif
+#include "config.h" //float vs double and terminal type set here
 
+//#include "../common/metadata.h"
 #include "../common/wave.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
 #include "../common/LowPassFilter.h"
-//#include "../common/MMClockRecovery.h"
+//#include "../common/MMClockRecovery.h" //gardner works better!
 #include "../common/GardenerClockRecovery.h"
 #include "../common/ManchesterDecode.h"
 #include "ByteSync.h"
@@ -31,11 +31,56 @@
 
 #define DSP_MAX_CARRIER_DEVIATION   (4500.0) //was (4500)
 
-#define DSP_PLL_LOCK_THRESH         (0.05) //(0.10) //0.025 
-#define DSP_PLL_ACQ_GAIN            (0.025) //(0.005)  
-#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015)
-#define DSP_PLL_LOCK_ALPHA          (0.00005) //
-#define DSP_SQLCH_THRESH            (0.01) //was (0.25)
+//new values have units of radians per second
+#define DSP_PLL_ACQ_GAIN            127.3240  
+#define DSP_PLL_TRCK_GAIN           10.3451
+#define DSP_PLL_LOCK_ALPHA          0.3979
+
+
+//avgphase based detection test
+//#define DSP_PLL_ACQ_GAIN            (0.025) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.00005   ) //0.00005
+
+#define DSP_PLL_LOCK_THRESH         (0.08) //(0.10) //0.025 //0.05
+#define DSP_PLL_SWEEP_THRESH         (0.05) //(0.10) //0.025 //0.05
+
+//matches golden with cabs(lock), radians per second converted
+//#define DSP_PLL_ACQ_GAIN            198.9437  
+//#define DSP_PLL_TRCK_GAIN           10.3451
+//#define DSP_PLL_LOCK_ALPHA          0.1592
+//#define DSP_PLL_LOCK_THRESH         1193.7
+
+//matches golden with cabs(lock)
+//#define DSP_PLL_ACQ_GAIN            (0.025) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.00002   ) //0.00005
+//#define DSP_PLL_LOCK_THRESH         (0.15) //(0.10) //0.025 //0.05
+
+//#define DSP_PLL_ACQ_GAIN            (0.03) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.0001) //0.00005
+//#define DSP_PLL_LOCK_THRESH         (0.18) //(0.10) //0.025 //0.05
+
+//5347
+//#define DSP_PLL_ACQ_GAIN            (0.03) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.0001) //0.00005
+//#define DSP_PLL_LOCK_THRESH         (0.18) //(0.10) //0.025 //0.05
+
+//5343
+ 
+//#define DSP_PLL_ACQ_GAIN            (0.025) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.00002) //0.00005
+//#define DSP_PLL_LOCK_THRESH         (0.15) //0.15
+
+//5341 
+//#define DSP_PLL_ACQ_GAIN            (0.025) //(0.005) //0.025  
+//#define DSP_PLL_TRCK_GAIN           (0.0013) //(0.0015) //0.0013
+//#define DSP_PLL_LOCK_ALPHA          (0.00004) //0.00005
+//#define DSP_PLL_LOCK_THRESH         (0.17) //(0.10) //0.025 //0.05
+//#define DSP_SQLCH_THRESH            (0.01) //was (0.25) //0.01
 
 //#define DSP_MM_MAX_DEVIATION        (10.0) //was (3.0)
 //#define DSP_MM_GAIN                 (0.15)
@@ -44,15 +89,21 @@
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (8320*2+0.3)
 #define DSP_MCHSTR_RESYNC_LVL       (0.75) //was (0.5)
-#define DSP_AGC_ATCK_RATE           (10.0e-3)//      //attack is when gain is INCREASING (weak signal)
-#define DSP_AGC_DCY_RATE            (20.0e-3) //     //decay is when the gain is REDUCING (strong signal)
+
+//new values have units of radians per second
+#define DSP_AGC_ATCK_RATE           (79.5775) //(1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+#define DSP_AGC_DCY_RATE            (159.1549) //(2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+//old values, dependant on sample rate
+//#define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+//#define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+
 //#define DSP_AGC_GAIN               (.00025)
 #define DSP_AGCC_GAIN               (0.00025)
 #define DSP_LPF_FC                  (11000.0)//(was (11000)
-#define DSP_LPF_INTERP              (3) //interpolation order
-#define DSP_LPF_ORDER               (26*DSP_LPF_INTERP) //was (26)
+//#define DSP_LPF_INTERP              (3) //This is now defined in the code, relative to Fs
+#define DSP_LPF_ORDER               (26) //(26*DSP_LPF_INTERP) //was (26) (this is now defined in the cose because the interpolation factor is based on Fs
 
-//why did ANSI color used to work in windows but now it doesnt?!
+//ANSI color code functionality seem to be hit and miss in windows =(
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
 #define ANSI_COLOR_YELLOW  "\x1b[33m"
@@ -99,24 +150,25 @@ int main(int argc, char **argv)
    FILE *minorFrameFile=NULL;
    FILE *rawOutFilePtr=NULL;
    
-   unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0,benchTime;
+   unsigned long chunkSize = DEFAULT_CHUNKSIZE, nSamples, i=0, nSymbols, nBits, totalSymbols=0, totalBits=0, totalSamples=0;//,benchTime;
    unsigned long num_samples;
    //unsigned long idx;
+  
    
    //double tempVal;
-   double Fs;
-   double averagePhase, percentComplete=0;
-   double normFactor=0;
-   double sampleRate=0;
+   DECIMAL_TYPE Fs;
+   DECIMAL_TYPE averagePhase, percentComplete=0;
+   DECIMAL_TYPE normFactor=0;
+   DECIMAL_TYPE sampleRate=0;
       
-   double *waveDataTime=NULL,*dataStreamLPF=NULL,*dataStreamReal=NULL, *dataStreamSymbols=NULL, *dataStreamLPFTime=NULL;
+   DECIMAL_TYPE *waveDataTime=NULL,*dataStreamLPF=NULL,*dataStreamReal=NULL, *dataStreamSymbols=NULL, *dataStreamLPFTime=NULL;
    
-   double *filterCoeffs=NULL;
-   double complex *waveData=NULL;
+   DECIMAL_TYPE *filterCoeffs=NULL;
+   DECIMAL_TYPE complex *waveData=NULL;
    char qualityString[20];
    
    //unsigned int CheckSum0=0, CheckSum1=0, CheckSum2=0, CheckSum3=0;
-   int nFrames=0, totalFrames=0,c;
+   int nFrames=0, totalFrames=0, c, dspLPFInterp, dspLPFOrder;
    
    unsigned char *dataStreamBits=NULL;
    char *inFileName=NULL;
@@ -163,7 +215,8 @@ int main(int argc, char **argv)
                return 1;
                }
             chunkSize = atoi(optarg);
-            printf("Using %ld chunkSize\n",chunkSize);
+            if(chunkSize != DEFAULT_CHUNKSIZE)
+               printf("Override: Using %ld chunkSize\n",chunkSize);
             break;
          case '?':
             if (optopt == 's' || optopt == 'c' || optopt == 'n')
@@ -179,28 +232,32 @@ int main(int argc, char **argv)
             abort ();
          }
       }
-   //printf("Using %ld chunkSize\n",chunkSize);
+   if(chunkSize == DEFAULT_CHUNKSIZE)   
+      printf("Using default %ld chunkSize\n",chunkSize);
    
    //Allocate the memory we will need
-   filterCoeffs      = malloc(sizeof(double) * DSP_LPF_ORDER);
+   //filterCoeffs      = malloc(sizeof(DECIMAL_TYPE) * DSP_LPF_ORDER); //we can't do this yet, we don't know Fs
+   //filterCoeffs      = malloc(sizeof(DECIMAL_TYPE) * dspLPFOrder);
    inFileName        = (char*) malloc(sizeof(char) * 1024);      
-   waveData          = (double complex*) malloc(sizeof(double complex) * chunkSize);      
-   waveDataTime      = (double *) malloc(sizeof(double ) * chunkSize);
-   dataStreamReal    = (double*) malloc(sizeof(double) * chunkSize);
-   dataStreamLPF     = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);
-   dataStreamLPFTime = (double*) malloc(sizeof(double) * chunkSize*DSP_LPF_INTERP);   
-   dataStreamSymbols = (double*) malloc(sizeof(double) * chunkSize);   
+   waveData          = (DECIMAL_TYPE complex*) malloc(sizeof(DECIMAL_TYPE complex) * chunkSize);      
+   waveDataTime      = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * chunkSize);
+   dataStreamReal    = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize);
+   //dataStreamLPF     = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*DSP_LPF_INTERP); //we can't do this yet, we don't know Fs
+   //dataStreamLPF     = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*dspLPFOrder);
+   //dataStreamLPFTime = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*DSP_LPF_INTERP); //we can't do this yet, we don't know Fs
+   //dataStreamLPFTime = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*dspLPFOrder);
+   dataStreamSymbols = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize);   
    dataStreamBits    = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
    
    //Make sure it was allocated OK
    if (dataStreamBits == NULL || 
-      filterCoeffs == NULL || 
+      //filterCoeffs == NULL || 
       inFileName == NULL || 
       waveDataTime == NULL ||
       waveData  == NULL || 
       dataStreamReal == NULL || 
-      dataStreamLPF == NULL ||
-      dataStreamLPFTime == NULL ||
+      //dataStreamLPF == NULL ||
+      //dataStreamLPFTime == NULL ||
       dataStreamSymbols  == NULL)
       {
       printf("Error in malloc\n");
@@ -274,8 +331,10 @@ int main(int argc, char **argv)
       header.sample_rate = sampleRate*1000.0; //we asked them to enter it in Khz
       header.channels = 2; //I and Q (assume that order!)
       header.bits_per_sample = 32; //assume 32-bit IEEE float
-      Fs = (double)header.sample_rate;
-      num_samples = 44515000; //this is a problem. How do we get the file size so we can calculate this?
+      Fs = (DECIMAL_TYPE)header.sample_rate;
+      dspLPFInterp = rint(150000.0/Fs); //Matlab testing shows 9 samples per symbol is the best, which is 150Khz
+      dspLPFOrder = DSP_LPF_ORDER*dspLPFInterp; 
+      num_samples = 44515000; //this is a problem. How do we get the file size so we can calculate this? //TODO
       //GetComplexChunk = GetComplexRawChunk; //how do you set a function pointer??
       }
    else //WAV
@@ -284,13 +343,30 @@ int main(int argc, char **argv)
       if(sampleRate > 1)
          header.sample_rate = sampleRate; //override sample rate if required
 
-      Fs = (double)header.sample_rate;
+      Fs = (DECIMAL_TYPE)header.sample_rate;
+      dspLPFInterp = rint(150000.0/Fs);
+      dspLPFOrder = DSP_LPF_ORDER*dspLPFInterp;
       num_samples = (8.0 * header.data_size) / (header.channels * header.bits_per_sample);
       //GetComplexChunk = GetComplexWaveChunk; //how do you set a function pointer??
       printf("Sample Rate %.2fKHz and %d bits per sample. Total samples %ld\n", Fs/1000.0, header.bits_per_sample ,num_samples);
        }
+   
+   //We can finally allocate the memory for the LPF
+   filterCoeffs      = malloc(sizeof(DECIMAL_TYPE) * dspLPFOrder);
+   dataStreamLPF     = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*dspLPFOrder);
+   dataStreamLPFTime = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize*dspLPFOrder);
+   
+   //Make sure it was allocated OK
+   if (filterCoeffs == NULL ||  
+      dataStreamLPF == NULL ||
+      dataStreamLPFTime == NULL)
+      {
+      printf("Error in malloc\n");
+      exit(1);
+      }  
        
-   MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs*DSP_LPF_INTERP, DSP_LPF_INTERP);
+   //MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs*DSP_LPF_INTERP, DSP_LPF_INTERP);
+   MakeLPFIR(filterCoeffs, dspLPFOrder, DSP_LPF_FC, Fs*dspLPFInterp, dspLPFInterp);
    
    //benchTime = clock();
    //printf("\n%ld ticks per second\n",CLOCKS_PER_SEC);
@@ -315,7 +391,9 @@ int main(int argc, char **argv)
       i+=nSamples;
       
       //CheckSum0 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
-      NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN);
+      
+      //NormalizingAGCC(waveData, nSamples, normFactor, DSP_AGCC_GAIN); //this is no longer neccesary because the PLL is now normalizing
+      
       //printf("4: %ld\t",clock()-benchTime); benchTime = clock();
       /*
       if(outputRawFiles == 1)
@@ -332,12 +410,13 @@ int main(int argc, char **argv)
       
       //CheckSum1 += CheckSum((unsigned char*)waveData, sizeof(*waveData) * nSamples);
       //averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, nSamples, Fs, 4500, 0.1, 0.01, 0.001);      
-      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, NULL, nSamples, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA*(2.0*M_PI/Fs), DSP_PLL_ACQ_GAIN*(2.0*M_PI/Fs), DSP_PLL_TRCK_GAIN*(2.0*M_PI/Fs));
       //CheckSum2 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //printf("5: %ld\t",clock()-benchTime); benchTime = clock();
       
       //LowPassFilter(dataStreamReal, nSamples, filterCoeffs, DSP_LPF_ORDER);
-      LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, nSamples, filterCoeffs, DSP_LPF_ORDER, DSP_LPF_INTERP);
+      //LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, nSamples, filterCoeffs, DSP_LPF_ORDER, DSP_LPF_INTERP);
+      LowPassFilterInterp(waveDataTime, dataStreamReal, dataStreamLPF, dataStreamLPFTime, nSamples, filterCoeffs, dspLPFOrder, dspLPFInterp); 
       //printf("6: %ld\t",clock()-benchTime); benchTime = clock();      
       
       //if(outputRawFiles == 1)         
@@ -346,16 +425,17 @@ int main(int argc, char **argv)
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       
       //NormalizingAGC(dataStreamReal, nSamples, 0.00025);
-      NormalizingAGC(dataStreamLPF, nSamples*DSP_LPF_INTERP, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
-      
-      
+      //NormalizingAGC(dataStreamLPF, nSamples*DSP_LPF_INTERP, normFactor, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
+      NormalizingAGC(dataStreamLPF, nSamples*dspLPFInterp, normFactor, DSP_AGC_ATCK_RATE*(2.0*M_PI/(Fs*dspLPFInterp)), DSP_AGC_DCY_RATE*(2.0*M_PI/(Fs*dspLPFInterp))); 
+            
       
       /*if(outputRawFiles == 1)         
          fwrite(dataStreamLPF, sizeof(double), nSamples*DSP_LPF_INTERP,rawOutFilePtr);*/
       //CheckSum3 += CheckSum((unsigned char *)dataStreamReal, sizeof(*dataStreamReal) * nSamples);
       //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, nSamples, dataStreamSymbols, Fs, 9, 0.15);      
       //printf("7: %ld\t\n\n",clock()-benchTime); benchTime = clock();
-      nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, nSamples*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);            
+      //nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, nSamples*DSP_LPF_INTERP, dataStreamSymbols, Fs*DSP_LPF_INTERP, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
+      nSymbols = GardenerClockRecovery(dataStreamLPF, dataStreamLPFTime, nSamples*dspLPFInterp, dataStreamSymbols, Fs*dspLPFInterp, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
       
       //if(outputRawFiles == 1)         
       //   fwrite(dataStreamLPFTime, sizeof(double), nSymbols,rawOutFilePtr);
@@ -378,12 +458,15 @@ int main(int argc, char **argv)
       totalFrames += nFrames;
       totalSymbols += nSymbols;
       totalSamples += nSamples;
-      if((((double)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(inFilePtr))
+      if((((DECIMAL_TYPE)( i) / num_samples)*100.0 - percentComplete > 0.15) || feof(inFilePtr))
          {
-         percentComplete = ((double)( i) / num_samples)*100.0;
+         percentComplete = ((DECIMAL_TYPE)( i) / num_samples)*100.0;
          printf("\r");
          //printf("\n");
-         averagePhase = 10.0 * log10( pow(1.5708 - averagePhase,2));
+         printf("%f\t",fabs(CONST_CNTR_ANGLE-averagePhase));
+         
+         averagePhase = 10.0 * log10( powf(fabs(CONST_CNTR_ANGLE - averagePhase),2));
+         //averagePhase = 100*fabs(CONST_CNTR_ANGLE - averagePhase);
          
          if(averagePhase > QUALITY_GOOD)
             snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_GREEN,averagePhase,ANSI_COLOR_RESET);
@@ -394,7 +477,7 @@ int main(int argc, char **argv)
          else //QUALITY_SHIT
             snprintf(qualityString, 20,"%s%02.1fQ%s", ANSI_COLOR_RED,averagePhase,ANSI_COLOR_RESET);
          
-         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames : %s   ", ((double)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames, qualityString);
+         printf("%0.1f%% %0.3f Ks : %0.1f Sec: %ld Sym : %ld Bits : %d Frames : %s   ", ((DECIMAL_TYPE)( i) / num_samples)*100.0,(totalSamples)/1000.0, waveDataTime[0], totalSymbols, totalBits, totalFrames, qualityString);
          }
       
       //fwrite("2", sizeof(unsigned char), 1, rawOutFilePtr);
@@ -409,13 +492,26 @@ int main(int argc, char **argv)
       }
    
    //printf("\nChecksum0=%X Checksum1=%X Checksum2=%X Checksum3=%X", CheckSum0, CheckSum1,CheckSum2,CheckSum3);
-   printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
+  // printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
+   
+   time_t t2 = time(NULL);
+   struct tm tm2 = *localtime(&t2);
+   //printf("I even alled of the bits in %d seconds!\n",(tm2.tm_min*60 + tm2.tm_sec)- (tm.tm_min*60 + tm.tm_sec));
+   printf("\nThat took %d seconds!\n",(tm2.tm_min*60 + tm2.tm_sec)- (tm.tm_min*60 + tm.tm_sec));
    
    if(outputRawFiles == 1)   
       fclose(rawOutFilePtr);
    
    if (fclose(inFilePtr)) { printf("error closing file."); exit(-1); }
    if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
+   
+   if(totalFrames == 0) 
+   {
+      printf("\n\nNone bits found :(\nRemoving output file and exiting.\nMAY YOU HAVE MORE BETTER BITS ANOTHER DAY\n");
+      remove(outFileName); //NO MORE ZERO SIZED FILE LITTER
+   }
+   else
+      printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    // cleanup before quitting
    free(inFileName);
@@ -425,6 +521,8 @@ int main(int argc, char **argv)
    free(waveData);
    free(dataStreamBits);
    free(waveDataTime);
+   free(dataStreamLPF);
+   free(dataStreamLPFTime);  
    
    
    //quit

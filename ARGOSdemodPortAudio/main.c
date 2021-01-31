@@ -5,8 +5,13 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <tgmath.h>
 #include <time.h>
 #include <conio.h>
+
+#include "config.h" //float vs DECIMAL_TYPE and terminal type set here
+
+//#include "../common/metadata.h"
 #include "../common/AGC.h"
 #include "../common/CarrierTrackPLL.h"
 #include "../common/LowPassFilter.h"
@@ -16,33 +21,52 @@
 #include "../common/portaudio.h"
 #include "ByteSync.h"
 
+#define TRUE 1
+#define FALSE 0
 
+//port audio stream params
 #define SAMPLE_RATE         (48000)
 #define PA_SAMPLE_TYPE      paFloat32
 #define NUM_CHANNELS        (2)
-#define DEFAULT_CHUNKSIZE  (1000)
+
+#define DEFAULT_CHUNKSIZE  (2400)
+//small chunk sizes (<2000) lead to weird time axis problems AND (separately) buffer overflows!
+//TODO: Figure out what the heck small chunk sizes mess up
+//BUT we want chunk sizes under the minorframe time for meta tracking. 
+//There are 10 minor frames per second means chunks should be under Sample rate/10 or 4800
 
 #define DSP_MAX_CARRIER_DEVIATION   (550.0) //was (550.0)
-#define DSP_PLL_LOCK_THRESH         (0.10) //was (1.00)
-#define DSP_PLL_LOCK_ALPHA           (0.004)
-#define DSP_PLL_ACQ_GAIN            (0.0015) //0.0015 //was (0.015) 
-#define DSP_PLL_TRCK_GAIN           (0.0015) // 0.0015 //was (0.015)
-#define DSP_SQLCH_THRESH            (0.3) //was (0.25)
+//new values have units of radians per second
+//#define DSP_PLL_LOCK_THRESH         (0.1)      //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+#define DSP_PLL_LOCK_ALPHA          (3.1831)   //(0.004) at 5khz
+#define DSP_PLL_ACQ_GAIN            (16)     //0.0015 //was (0.015) at 5khz (16 decoded the best at 5khz) 
+#define DSP_PLL_TRCK_GAIN           DSP_PLL_ACQ_GAIN       // 0.0015 //was (0.015) at 5khz
+//#define DSP_SQLCH_THRESH            (0.15)     //was (0.25) //was (0.15) //AR0.3 at 5khz
+
+//old values, dependant on sample rate
+ #define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+// #define DSP_PLL_LOCK_ALPHA          (0.004)
+// #define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015) 
+// #define DSP_PLL_TRCK_GAIN           (0.015) // 0.0015 //was (0.015)
+ #define DSP_SQLCH_THRESH            (0.15) //was (0.25) //was (0.15) //AR0.3
+
+//new values have units of radians per second
+#define DSP_AGC_ATCK_RATE           (79.5775) //(1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+#define DSP_AGC_DCY_RATE            (159.1549) //(2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+//old values, dependant on sample rate
+//#define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
+//#define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
+
+#define DSP_AGCC_GAIN               (0.0015) //(0.0005) //was (0.001)
+#define DSP_LPF_FC                  (700) //(was (700)
+#define DSP_LPF_ORDER               (50) //was (50)
+
 //#define DSP_MM_MAX_DEVIATION        (2.0) //was (3.0)
 //#define DSP_MM_GAIN                 (0.2) //was (0.15)
 #define DSP_GDNR_ERR_LIM            (0.1) //was 0.1
 #define DSP_GDNR_GAIN               (3.0) //was 2.5
 #define DSP_BAUD                    (400*2)
 #define DSP_MCHSTR_RESYNC_LVL       (0.5) //was (0.5)
-#define DSP_AGC_ATCK_RATE           (1e-1)//(0.5e-1) //was (1e-1) //attack is when gain is INCREASING (weak signal)
-#define DSP_AGC_DCY_RATE            (2e-1) //was (1e-1) //decay is when the gain is REDUCING (strong signal)
-
-#define DSP_AGCC_GAIN               (0.0015) //(0.0005) //was (0.001)
-#define DSP_LPF_FC                  (700) //(was (700)
-#define DSP_LPF_ORDER               (50) //was (50)
-
-#define TRUE 1
-#define FALSE 0
 
 #define RAW_OUTPUT_FILES
 
@@ -88,19 +112,19 @@ int main(int argc, char **argv)
    float *waveFrame; //data from input stream
    float realPart, imagPart;
    
-   double *dataStreamReal=NULL, *dataStreamSymbols=NULL, *lockSignalStream=NULL;
-   double Fs = SAMPLE_RATE;
-   double LPF_Fc;   
-   double averagePhase=0;
-   double normFactor=0;
-   double Time=0;
+   DECIMAL_TYPE *dataStreamReal=NULL, *dataStreamSymbols=NULL, *lockSignalStream=NULL;
+   DECIMAL_TYPE Fs = SAMPLE_RATE;
+   //DECIMAL_TYPE LPF_Fc;   
+   DECIMAL_TYPE averagePhase=0;
+   DECIMAL_TYPE normFactor=0;
+   DECIMAL_TYPE Time=0;
    
-   double *filterCoeffs=NULL, *waveDataTime=NULL;
-   double complex *waveData=NULL;
+   DECIMAL_TYPE *filterCoeffs=NULL, *waveDataTime=NULL;
+   DECIMAL_TYPE complex *waveData=NULL;
    
    
    //unsigned int CheckSum1=0, CheckSum2=0, CheckSum3=0;
-   int LPF_Order, nFrames=0, totalFrames=0,c;
+   int nFrames=0, totalFrames=0,c;
    
    unsigned char *dataStreamBits=NULL;
    char outFileName[100];
@@ -128,7 +152,8 @@ int main(int argc, char **argv)
                return 1;
                }
             chunkSize = atoi(optarg);
-            
+            if(chunkSize != DEFAULT_CHUNKSIZE)
+               printf("Override: Using %ld chunkSize\n",chunkSize);
             break;
          case '?':
             if (optopt == 'c' || optopt == 'n')
@@ -144,17 +169,18 @@ int main(int argc, char **argv)
             abort ();
          }
       }      
-   printf("Using %ld chunkSize\n",chunkSize);
-   LPF_Order = DSP_LPF_ORDER;
+      
+   if(chunkSize == DEFAULT_CHUNKSIZE)   
+      printf("Using default %ld chunkSize\n",chunkSize);
    
    //Allocate the memory we will need
-   filterCoeffs = malloc(sizeof(double) * LPF_Order);        
-   waveData = (double complex*) malloc(sizeof(double complex) * chunkSize);    
+   filterCoeffs = malloc(sizeof(DECIMAL_TYPE) * DSP_LPF_ORDER);        
+   waveData = (DECIMAL_TYPE complex*) malloc(sizeof(DECIMAL_TYPE complex) * chunkSize);    
    waveFrame = (float *) malloc(sizeof(float ) * chunkSize*2);
-   waveDataTime   = (double *) malloc(sizeof(double ) * chunkSize);
-   dataStreamReal = (double*) malloc(sizeof(double) * chunkSize);
-   lockSignalStream = (double*) malloc(sizeof(double) * chunkSize);
-   dataStreamSymbols = (double*) malloc(sizeof(double) * chunkSize);   
+   waveDataTime   = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE ) * chunkSize);
+   dataStreamReal = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize);
+   lockSignalStream = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize);
+   dataStreamSymbols = (DECIMAL_TYPE*) malloc(sizeof(DECIMAL_TYPE) * chunkSize);   
    dataStreamBits = (unsigned char*) malloc(sizeof(unsigned char) * chunkSize);
    
    if (dataStreamBits == NULL || 
@@ -234,8 +260,8 @@ int main(int argc, char **argv)
       }
    #endif
    
-   LPF_Fc = DSP_LPF_FC;   
-   MakeLPFIR(filterCoeffs, LPF_Order, LPF_Fc, Fs, 1);
+   //LPF_Fc = DSP_LPF_FC;   
+   MakeLPFIR(filterCoeffs, DSP_LPF_ORDER, DSP_LPF_FC, Fs, 1);
    
    while(!kbhit())
       { 
@@ -268,26 +294,29 @@ int main(int argc, char **argv)
          
       i+=chunkSize;
      
-      NormalizingAGCC(waveData, chunkSize, normFactor, DSP_AGCC_GAIN);
+      //NormalizingAGCC(waveData, chunkSize, normFactor, DSP_AGCC_GAIN);//this is no longer neccesary because the PLL is now normalizing
       
-      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);      
+      //averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA, DSP_PLL_ACQ_GAIN, DSP_PLL_TRCK_GAIN);
+      averagePhase = CarrierTrackPLL(waveData, dataStreamReal, lockSignalStream, chunkSize, Fs, DSP_MAX_CARRIER_DEVIATION, DSP_PLL_LOCK_THRESH, DSP_PLL_LOCK_ALPHA*(2.0*M_PI/Fs), DSP_PLL_ACQ_GAIN*(2.0*M_PI/Fs), DSP_PLL_TRCK_GAIN*(2.0*M_PI/Fs));
       (void)averagePhase;      
-      //fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
-      LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, LPF_Order);      
-      NormalizingAGC(dataStreamReal, chunkSize, DSP_AGC_ATCK_RATE, DSP_AGC_DCY_RATE);
+      //fwrite(dataStreamReal, sizeof(DECIMAL_TYPE), chunkSize,rawOutFilePtr);
+      
+      LowPassFilter(dataStreamReal, chunkSize, filterCoeffs, DSP_LPF_ORDER);      
+         
+      NormalizingAGC(dataStreamReal, chunkSize,  normFactor, DSP_AGC_ATCK_RATE*(2.0*M_PI/Fs), DSP_AGC_DCY_RATE*(2.0*M_PI/Fs));
       
       #ifdef RAW_OUTPUT_FILES
-         fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
+         fwrite(dataStreamReal, sizeof(DECIMAL_TYPE), chunkSize,rawOutFilePtr);
       #endif
       
       Squelch(dataStreamReal, lockSignalStream, chunkSize, DSP_SQLCH_THRESH);
-      //fwrite(dataStreamReal, sizeof(double), chunkSize,rawOutFilePtr);
+      //fwrite(dataStreamReal, sizeof(DECIMAL_TYPE), chunkSize,rawOutFilePtr);
       
       //nSymbols = MMClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, DSP_MM_MAX_DEVIATION, DSP_MM_GAIN);
       nSymbols = GardenerClockRecovery(dataStreamReal, waveDataTime, chunkSize, dataStreamSymbols, Fs, DSP_BAUD, DSP_GDNR_ERR_LIM, DSP_GDNR_GAIN);
       
       //#ifdef RAW_OUTPUT_FILES
-      //fwrite(dataStreamSymbols, sizeof(double), nSymbols,rawOutFilePtr);
+      //fwrite(dataStreamSymbols, sizeof(DECIMAL_TYPE), nSymbols,rawOutFilePtr);
       //#endif
       
       nBits = ManchesterDecode(dataStreamSymbols, waveDataTime, nSymbols, dataStreamBits, DSP_MCHSTR_RESYNC_LVL);
@@ -307,7 +336,7 @@ int main(int argc, char **argv)
       }
    getch(); //clear the buffer
    //printf("\nChecksum1=%X Checksum2=%X Checksum3=%X", CheckSum1,CheckSum2,CheckSum3);
-   printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
+   //printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    err = Pa_CloseStream( stream );
    if( err != paNoError ) goto error;
@@ -322,8 +351,15 @@ int main(int argc, char **argv)
    fclose(rawOutFilePtr);
    fclose(rawOutFilePtr2);
    #endif
-   fclose(minorFrameFile);
+   if (fclose(minorFrameFile)) { printf("error closing file."); exit(-1); }
    
+   if(totalFrames == 0) 
+   {
+      printf("\n\nNone bits found :(\nRemoving output file and exiting.\nMAY YOU HAVE MORE BETTER BITS ANOTHER DAY\n");
+      remove(outFileName); //NO MORE ZERO SIZED FILE LITTER
+   }
+   else
+      printf("\nAll done! Closing files and exiting.\nENJOY YOUR BITS AND HAVE A NICE DAY\n");
    
    // cleanup before quitting
    free(dataStreamSymbols);
@@ -344,7 +380,7 @@ int main(int argc, char **argv)
       fclose(rawOutFilePtr2);
       #endif
       fclose(minorFrameFile);
-      
+      remove(outFileName); //NO MORE ZERO SIZED FILE LITTER
       // cleanup before quitting
       
       free(dataStreamReal);

@@ -1,4 +1,4 @@
-#include <math.h>
+#include <tgmath.h>
 #include <stdio.h>
 #include "ManchesterDecode.h"
 #include "MMClockRecovery.h"
@@ -7,7 +7,7 @@
 //First bit time of the manchester pair is used to evaluate phase
 //Second bit time of the manchester pair is used to sample the bit (using both)
 
-unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, unsigned long nSymbols, unsigned char *bitStream, double resyncThreshold)
+unsigned long ManchesterDecode(DECIMAL_TYPE *dataStreamIn, DECIMAL_TYPE *dataStreamTime, unsigned long nSymbols, unsigned char *bitStream, DECIMAL_TYPE resyncThreshold)
    {
    //convert to bits from raw manchester bits
    //resyncThreshold = 1;
@@ -15,9 +15,9 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
    unsigned long idxi, idxo=0;
    static unsigned int clockmod = 0;
    //static unsigned long idxerr=1;
-   static double currentSample=0;
-   static double prevSample=0;
-   static double prevPrevSample=0;
+   static DECIMAL_TYPE currentSample=0;
+   static DECIMAL_TYPE prevSample=0;
+   static DECIMAL_TYPE prevPrevSample=0;
    static unsigned char evenOddCounter=0;
    
    unsigned char currentBit;
@@ -36,11 +36,19 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
          {
          if(sign(prevPrevSample) == sign(prevSample))
             {    
-            if(fabs(prevPrevSample) > resyncThreshold && fabs(prevSample) > resyncThreshold)
-               {
-               //printf("\nResync: %f=%f %ld %ld\n",prevSample,prevPrevSample,idxi,idxo);
-               clockmod = (evenOddCounter % 2); //only resync if we have confidence in BOTH bit decisions
-               }
+            #if USE_FLOATS==1
+               if(fabsf(prevPrevSample) > resyncThreshold && fabsf(prevSample) > resyncThreshold)
+                  {
+                  //printf("\nResync: %f=%f %ld %ld\n",prevSample,prevPrevSample,idxi,idxo);
+                  clockmod = (evenOddCounter % 2); //only resync if we have confidence in BOTH bit decisions
+                  }
+            #else
+               if(fabs(prevPrevSample) > resyncThreshold && fabs(prevSample) > resyncThreshold)
+                  {
+                  //printf("\nResync: %f=%f %ld %ld\n",prevSample,prevPrevSample,idxi,idxo);
+                  clockmod = (evenOddCounter % 2); //only resync if we have confidence in BOTH bit decisions
+                  }
+            #endif            
             }        
          }
        
@@ -48,23 +56,39 @@ unsigned long ManchesterDecode(double *dataStreamIn, double *dataStreamInTime, u
       //two bits. 
       if((evenOddCounter % 2) == clockmod)
          {
-         if(fabs((prevSample)) > fabs((currentSample))) //use the strongest symbol to determine bit
-            {
-            if(prevSample > 0)                
-            currentBit = '1';
-            else
-            currentBit = '0';
-            }            
+         #if USE_FLOATS==1
+            if(fabsf((prevSample)) > fabsf((currentSample))) //use the strongest symbol to determine bit
+               {
+               if(prevSample > 0)                
+                  currentBit = '1';
+               else
+                  currentBit = '0';
+               }
+         #else
+            if(fabs((prevSample)) > fabs((currentSample))) //use the strongest symbol to determine bit
+               {
+               if(prevSample > 0)                
+                  currentBit = '1';
+               else
+                  currentBit = '0';
+               }
+         #endif
+                     
          else
             {
             if(currentSample > 0)                
-            currentBit = '0';
+               currentBit = '0';
             else
-            currentBit = '1';                    
+               currentBit = '1';                    
             }        
          //bitTime(idxo)=rawTime(idxi);  
          bitStream[idxo] = currentBit;
-         dataStreamInTime[idxo] = dataStreamInTime[idxi];
+         dataStreamTime[idxo] = dataStreamTime[idxi];
+         /*if(idxo > 0 && idxo >= idxi)
+            {
+            printf("\nWhoops! %d >= %d\n", idxo, idxi);               
+            exit(1);
+            }*/
          idxo++;         
          }      
       

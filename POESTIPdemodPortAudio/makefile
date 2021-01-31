@@ -1,5 +1,6 @@
 CC=gcc
-CFLAGS=-Wall -Wno-unused-parameter -O3 -pipe -fomit-frame-pointer -march=i686
+//CFLAGS=-Wall -Wno-unused-parameter -Ofast -pipe -fomit-frame-pointer -march=i686
+CFLAGS = -include config.h -Wall -Wno-unused-parameter -Ofast -pipe -fomit-frame-pointer -march=i686
 LIBS = -lm -lportaudio
 
 vpath %.c ../common

@@ -10,7 +10,7 @@
  * Low Pass Filter with zero stuffing interpolator 
  */
  
-void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double *dataStreamOut, double *dataStreamOutTime, unsigned long nSamples, double *filterCoeffs, int N, int interpFactor)
+void LowPassFilterInterp(DECIMAL_TYPE *dataStreamInTime, DECIMAL_TYPE *dataStreamIn, DECIMAL_TYPE *dataStreamOut, DECIMAL_TYPE *dataStreamOutTime, unsigned long nSamples, DECIMAL_TYPE *filterCoeffs, int N, int interpFactor)
    {
    /*
    * Insert the newest sample into an N-sample circular buffer.
@@ -20,9 +20,9 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
    unsigned int idxF;
    static char firsttime = 1;
    //static double h[] = {0,-0.000109655250327,0.000316665647855,0.001676613642539,-0.000476921998763,-0.007259094943430,-0.003189409960007, 0.019323908569853,0.020108432578903,-0.036803451537779,-0.072012095309267,0.053204443013450,0.305238645914910,0.439963839264128,0.305238645914910,0.053204443013450,-0.072012095309267,-0.036803451537779,0.020108432578903,0.019323908569853,-0.003189409960007, -0.007259094943430,-0.000476921998763,0.001676613642539,0.000316665647855,-0.000109655250327, 0};
-   static double *x; //circular buffer
+   static DECIMAL_TYPE *x; //circular buffer
    static int oldest = 0;
-   double y;
+   DECIMAL_TYPE y; //accumulator
    unsigned long idxO, idxI=0;
    static unsigned char interpCounter=0;
    unsigned long nSamplesInterp = nSamples*interpFactor;
@@ -30,13 +30,13 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
    if(firsttime == 1)
       {   
       firsttime = 0;      
-      x = (double *) malloc(sizeof(double) * N);
+      x = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * N);
       if (x == NULL)
          {
          printf("Error in malloc\n");
          exit(1);
          }
-      memset(x,0,sizeof(double)*N); //zero out the circular buffer
+      memset(x,0,sizeof(DECIMAL_TYPE)*N); //zero out the circular buffer
       }
    
    //for(idxO = 0; idxO < (nSamples*interpFactor); idxO++,interpCounter++)
@@ -73,7 +73,7 @@ void LowPassFilterInterp(double *dataStreamInTime, double *dataStreamIn, double 
 /*
  * Low Pass Filter 
  */
-void LowPassFilter(double *dataStream, unsigned long nSamples, double *filterCoeffs, int N)
+void LowPassFilter(DECIMAL_TYPE *dataStream, unsigned long nSamples, DECIMAL_TYPE *filterCoeffs, int N)
    {
    /*
     * Insert the newest sample into an N-sample circular buffer.
@@ -83,21 +83,21 @@ void LowPassFilter(double *dataStream, unsigned long nSamples, double *filterCoe
    unsigned int idxF;
    static char firsttime = 1;
    //static double h[] = {0,-0.000109655250327,0.000316665647855,0.001676613642539,-0.000476921998763,-0.007259094943430,-0.003189409960007, 0.019323908569853,0.020108432578903,-0.036803451537779,-0.072012095309267,0.053204443013450,0.305238645914910,0.439963839264128,0.305238645914910,0.053204443013450,-0.072012095309267,-0.036803451537779,0.020108432578903,0.019323908569853,-0.003189409960007, -0.007259094943430,-0.000476921998763,0.001676613642539,0.000316665647855,-0.000109655250327, 0};
-   static double *x; //circular buffer
+   static DECIMAL_TYPE *x; //circular buffer
    static int oldest = 0;
-   double y; //accumulator
+   DECIMAL_TYPE y; //accumulator
    long idxO;
    //long idxF = -N; //BUG! -N delay should only be for FIRST GO AROUND!
    if(firsttime == 1)
       {   
       firsttime = 0;
-      x = (double *) malloc(sizeof(double) * N);
+      x = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * N);
       if (x == NULL)
             {
             printf("Error in malloc\n");
             exit(1);
             }
-      memset(x,0,sizeof(double)*N); //zero out the circular buffer
+      memset(x,0,sizeof(DECIMAL_TYPE)*N); //zero out the circular buffer
       }
    // printf("LPF\n");
    
@@ -124,18 +124,18 @@ void LowPassFilter(double *dataStream, unsigned long nSamples, double *filterCoe
       }
    }
    
-int MakeLPFIR(double *h, int N, double Fc, double Fs, int interpFactor)
+int MakeLPFIR(DECIMAL_TYPE *h, int N, DECIMAL_TYPE Fc, DECIMAL_TYPE Fs, int interpFactor)
    {
-   double *hd;
+   DECIMAL_TYPE *hd;
    int n;
-   double T = 1.0 / Fs;
-   double wc = 2.0*M_PI*Fc*T;
-   double tou = (N-1.0)/2.0;
-   double wn;
+   DECIMAL_TYPE T = 1.0 / Fs;
+   DECIMAL_TYPE wc = 2.0*M_PI*Fc*T;
+   DECIMAL_TYPE tou = (N-1.0)/2.0;
+   DECIMAL_TYPE wn;
    
    //Fs = interpFactor*Fs;
    
-   hd = (double *) malloc(sizeof(double) * N);
+   hd = (DECIMAL_TYPE *) malloc(sizeof(DECIMAL_TYPE) * N);
    if (hd == NULL)
          {
          printf("Error in malloc\n");
@@ -156,14 +156,14 @@ int MakeLPFIR(double *h, int N, double Fc, double Fs, int interpFactor)
       //printf("hd[%d]=%f\n",n,hd[n]);
       }
    
-   // apply window
+   // apply window function
    for(n=0; n < N; n++)
       {
       //wn = 1;
       wn = 0.42 - 0.5 * cos((2 * M_PI * n)/(N-1)) + 0.08 * cos((4 * M_PI * n)/(N-1));
       //wn = 0.54-0.46*cos((2*M_PI*n)/(N-1));
       //wn = (1 - cos((2*M_PI*n) / (N-1)));
-      h[n] = hd[n] * wn * (double)(interpFactor);
+      h[n] = hd[n] * wn * (DECIMAL_TYPE)(interpFactor);
       }
    
    /*for(n=0;n < N;n++)
