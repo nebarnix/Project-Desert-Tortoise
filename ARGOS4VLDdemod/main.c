@@ -21,9 +21,9 @@
 #define FALSE 0
 #define DEFAULT_CHUNKSIZE  (1000)
 
-#define DSP_MAX_CARRIER_DEVIATION   (250.0) //was (550.0)
+#define DSP_MAX_CARRIER_DEVIATION   (550.0) //was (550.0)
 
-#define DSP_PLL_LOCK_THRESH         (0.5) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
+#define DSP_PLL_LOCK_THRESH         (0.1) //was (1.00) //AR0.1) (doesn't really do anything if the track and acquire gains are the same)
 #define DSP_PLL_LOCK_ALPHA          (0.004)
 #define DSP_PLL_ACQ_GAIN            (0.015) //0.0015 //was (0.015)
 #define DSP_PLL_TRCK_GAIN           (0.015) // 0.0015 //was (0.015)

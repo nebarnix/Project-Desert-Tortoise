@@ -13,12 +13,12 @@
   - Select Audio
   - Deselect Baseband (the sample rate is _really_ high!)
 - Run the program and pass the .wav file as an arg
-  - e.g. demodARGOS.exe SDRSharp_20201025_223047Z_401606000Hz_IQ.wav
+  - e.g. demodARGOS.exe SDRSharp_20210131_083845Z_401606000Hz_IQ.wav
   - The wav file contains the 'short' example from A4-SS-TER-SP-0079-CNES
   - The Platform ID is 0x1234567
   - The complete over-air data stream, including sync pattern and length, is:
     - 0xAC53531C651CECA2F followed by 0b011
-  - SDRSharp_20201101_091018Z_401606000Hz_IQ.wav contains the 'long' example from A4-SS-TER-SP-0079-CNES
+  - SDRSharp_20210131_084058Z_401605000Hz_IQ.wav contains the 'long' example from A4-SS-TER-SP-0079-CNES
   - The complete over-air data stream, including sync pattern and length, is:
     - 0xAC5353DC651CECA2F6E328E76517B719473B28BD followed by 0b1
 - Enjoy your bits =3
